@@ -2411,15 +2411,13 @@ const RAPFI = (function () {
             }
             if (!canFetch) return Promise.reject(new Error('no assets'));
             try { LOG.add('📦 正在加载' + (kind === 'nnue' ? '「灵拙」神经网络资源' : '「困难」经典引擎资源') + '（首次需下载一次，之后会缓存）…'); } catch (e) {}
-            let lastPct = -1;
             const mkProg = function (label) {
-                return function (got, total) {
-                    if (!total) return;
-                    const pct = Math.floor(got * 100 / total);
-                    if (pct === lastPct && got !== total) return;
-                    lastPct = pct;
-                    if (pct % 10 !== 0 && got !== total) return;
-                    try { LOG.add('  · ' + label + '下载 ' + pct + '%（' + (got / 1048576).toFixed(1) + ' / ' + (total / 1048576).toFixed(1) + ' MB）'); } catch (e) {}
+                let lastMB = 0;
+                return function (got) {
+                    const mb = got / 1048576;
+                    if (mb - lastMB < 1) return;
+                    lastMB = mb;
+                    try { LOG.add('  · ' + label + '下载中…已接收 ' + mb.toFixed(1) + ' MB'); } catch (e) {}
                 };
             };
             return Promise.all([
