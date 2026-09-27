@@ -259,6 +259,47 @@
         .boot-ov .tt { font-size: 16px; font-weight: 800; color: #25405c; letter-spacing: 1px; }
         .boot-ov .st { font-size: 12.5px; font-weight: 600; color: #5f88b8; line-height: 1.7; }
         .boot-ov .tip { font-size: 12px; color: #7ba6cf; min-height: 1.3em; }
+        /* —— 🏆 成就（v29）—— */
+        .ach-banner {
+            position: fixed; top: 18px; left: 50%; z-index: 80;
+            transform: translate(-50%, -96px);
+            display: flex; align-items: center; gap: 13px;
+            background: linear-gradient(135deg, #fffef7, #fff3d4);
+            border: 1.5px solid #f0d78c; border-radius: 18px;
+            padding: 12px 22px 12px 15px; box-shadow: 0 18px 44px rgba(160, 120, 40, .32);
+            opacity: 0; pointer-events: none;
+            transition: transform .5s cubic-bezier(.22,.9,.28,1), opacity .4s ease;
+        }
+        .ach-banner.show { transform: translate(-50%, 0); opacity: 1; }
+        .ach-banner .emo { font-size: 32px; animation: achPop .7s cubic-bezier(.34,1.56,.64,1); }
+        @keyframes achPop { 0% { transform: scale(.3) rotate(-18deg); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+        .ach-banner .t1 { font-size: 10.5px; font-weight: 800; letter-spacing: 2.5px; color: #b8892e; }
+        .ach-banner .t2 { font-size: 15.5px; font-weight: 800; color: #6b4f12; margin-top: 2px; }
+        .ach-banner .t3 { font-size: 11.5px; color: #9a7c3a; margin-top: 1px; }
+        .ach-mask {
+            position: fixed; inset: 0; z-index: 75; background: rgba(31, 44, 64, .38);
+            -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center; padding: 20px;
+            opacity: 0; pointer-events: none; transition: opacity .3s ease;
+        }
+        .ach-mask.show { opacity: 1; pointer-events: auto; }
+        .ach-panel {
+            width: 100%; max-width: 470px; max-height: 82vh; overflow-y: auto;
+            background: #fffdf8; border-radius: 24px; padding: 22px;
+            box-shadow: 0 30px 80px rgba(30, 40, 70, .4);
+            transform: translateY(20px) scale(.98); transition: transform .35s cubic-bezier(.22,.9,.28,1);
+        }
+        .ach-mask.show .ach-panel { transform: none; }
+        .ach-panel h3 { font-size: 17px; font-weight: 800; color: #3d2f1e; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .ach-panel h3 button { border: none; background: #f4ead2; border-radius: 10px; width: 30px; height: 30px; cursor: pointer; color: #8a6f3e; font-size: 14px; }
+        .ach-stats2 { font-size: 12px; color: #8a6f3e; margin-bottom: 14px; line-height: 1.7; }
+        .ach-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+        .ach-item { display: flex; gap: 10px; align-items: center; background: #fff8ea; border: 1px solid #f0e2bf; border-radius: 15px; padding: 10px 12px; }
+        .ach-item.locked { opacity: .6; filter: grayscale(.9); background: #f7f4ec; border-color: #e7e0d2; }
+        .ach-item .ae { font-size: 23px; width: 30px; text-align: center; }
+        .ach-item .an { font-size: 12.5px; font-weight: 800; color: #5a4318; }
+        .ach-item .ad { font-size: 10.5px; color: #9a8a66; margin-top: 2px; line-height: 1.5; }
+        @media (max-width: 480px) { .ach-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -346,6 +387,7 @@
             <button class="action-btn reset" id="resetBtn">⟳ 新游戏</button>
         </div>
         <div class="action-row">
+            <button class="action-btn" id="achBtn" style="background:#e6b84d;box-shadow:0 4px 0 #b8892e;">🏆 成就</button>
             <button class="action-btn" id="clearMemBtn" style="background:#7f9bce;box-shadow:0 4px 0 #5a77ab;">🧹 清除AI记忆</button>
         </div>
         <div class="stats" id="statsDisplay">⚡ 学习: 位置热度积累中...</div>
@@ -488,6 +530,7 @@ let winner = null;
 let moveHistory = [];       // {row,col,player}
 let playerMoves = [];       // 人类落子（学习用）
 let gameRecorded = false;
+let undoThisGame = false;   // 本局是否用过悔棋（成就统计用）
 let styleCnt = { atk: 0, react: 0, spread: 0 };
 let humanStyle = null;
 
@@ -1983,6 +2026,7 @@ function noteHumanMove(row, col) {
 function recordGameEnd(winColor) {
     if (gameRecorded) return;
     gameRecorded = true;
+    try { ACH.onGameEnd(winColor); } catch (e) {}
     const b = MB();
     b.played++;
     if (winColor === null) b.draws++;
@@ -3634,6 +3678,119 @@ function handleTouch(e) {
     placeStone(row, col, humanColor);
 }
 
+// ---------- 🏆 成就系统（v29）----------
+const ACH_KEY = 'gomoku_ach_v1';
+const ACH_DEFS = [
+    { id: 'first_game',  emoji: '🌱', name: '初见棋枰', desc: '完成第一盘对局' },
+    { id: 'first_win',   emoji: '🥇', name: '首胜', desc: '第一次战胜 AI' },
+    { id: 'games_10',    emoji: '⚔️', name: '十番棋', desc: '累计对局 10 盘' },
+    { id: 'games_50',    emoji: '🏯', name: '五十番棋', desc: '累计对局 50 盘' },
+    { id: 'streak_3',    emoji: '🔥', name: '三连胜', desc: '连续战胜 AI 三局' },
+    { id: 'beat_hard',   emoji: '🧠', name: '智者挑战', desc: '战胜「困难」经典引擎' },
+    { id: 'beat_nnue',   emoji: '👑', name: '灵拙之敌', desc: '战胜「灵拙」mix9 神经网络' },
+    { id: 'fast_win',    emoji: '⚡', name: '闪电战', desc: '30 手内速胜一局' },
+    { id: 'no_undo_win', emoji: '🎯', name: '落子无悔', desc: '全程未悔棋赢下一局' },
+    { id: 'draw_1',      emoji: '🤝', name: '以和为贵', desc: '与 AI 下成平局' },
+    { id: 'quick_win',   emoji: '🚀', name: '快枪手', desc: '战胜「快速」难度' }
+];
+const ACH = (function () {
+    let st = { games: 0, wins: 0, losses: 0, draws: 0, streak: 0, best: 0, beatCls: 0, beatNnue: 0, beatQuick: 0, fastWins: 0, cleanWins: 0, unlocked: {} };
+    try {
+        const raw = localStorage.getItem(ACH_KEY);
+        if (raw) { const p = JSON.parse(raw); if (p && typeof p === 'object') { Object.assign(st, p); st.unlocked = p.unlocked || {}; } }
+    } catch (e) {}
+    function save() { try { localStorage.setItem(ACH_KEY, JSON.stringify(st)); } catch (e) {} }
+    function cond(id) {
+        switch (id) {
+            case 'first_game': return st.games >= 1;
+            case 'first_win': return st.wins >= 1;
+            case 'games_10': return st.games >= 10;
+            case 'games_50': return st.games >= 50;
+            case 'streak_3': return st.best >= 3;
+            case 'beat_hard': return st.beatCls >= 1;
+            case 'beat_nnue': return st.beatNnue >= 1;
+            case 'fast_win': return st.fastWins >= 1;
+            case 'no_undo_win': return st.cleanWins >= 1;
+            case 'draw_1': return st.draws >= 1;
+            case 'quick_win': return st.beatQuick >= 1;
+        }
+        return false;
+    }
+    function unlockedCount() { return ACH_DEFS.filter(function (d) { return st.unlocked[d.id]; }).length; }
+    function refreshBtn() {
+        try { const b = document.getElementById('achBtn'); if (b) b.innerHTML = '🏆 成就 ' + unlockedCount() + '/' + ACH_DEFS.length; } catch (e) {}
+    }
+    function banner(def) {
+        let el = document.getElementById('achBanner');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'achBanner'; el.className = 'ach-banner';
+            el.innerHTML = '<div class="emo"></div><div><div class="t1">🏆 成就解锁</div><div class="t2"></div><div class="t3"></div></div>';
+            document.body.appendChild(el);
+        }
+        el.querySelector('.emo').textContent = def.emoji;
+        el.querySelector('.t2').textContent = def.name;
+        el.querySelector('.t3').textContent = def.desc;
+        el.classList.add('show');
+        clearTimeout(banner._t);
+        banner._t = setTimeout(function () { el.classList.remove('show'); }, 3400);
+    }
+    function unlock(id) {
+        const def = ACH_DEFS.find(function (d) { return d.id === id; });
+        if (!def || st.unlocked[id]) return;
+        st.unlocked[id] = Date.now();
+        save();
+        refreshBtn();
+        banner(def);
+        try { LOG.add('🏆 成就解锁：' + def.name + ' —— ' + def.desc); } catch (e) {}
+    }
+    function checkAll() { ACH_DEFS.forEach(function (d) { if (cond(d.id)) unlock(d.id); }); }
+    function onGameEnd(winColor) {
+        st.games++;
+        if (winColor === null) { st.draws++; st.streak = 0; }
+        else if (winColor === humanColor) {
+            st.wins++;
+            st.streak++;
+            if (st.streak > st.best) st.best = st.streak;
+            const d = difficulty;
+            if (d === 2) st.beatCls++;
+            if (d === 3) st.beatNnue++;
+            if (d === 4) st.beatQuick++;
+            if (moveHistory.length <= 30) st.fastWins++;
+            if (!undoThisGame) st.cleanWins++;
+        } else { st.losses++; st.streak = 0; }
+        save();
+        checkAll();
+    }
+    function openPanel() {
+        let mask = document.getElementById('achMask');
+        if (!mask) {
+            mask = document.createElement('div');
+            mask.id = 'achMask'; mask.className = 'ach-mask';
+            mask.innerHTML = '<div class="ach-panel"><h3><span>🏆 我的成就</span><button id="achClose">✕</button></h3><div class="ach-stats2" id="achStats2"></div><div class="ach-grid" id="achGrid"></div></div>';
+            document.body.appendChild(mask);
+            mask.addEventListener('click', function (e) { if (e.target === mask) closePanel(); });
+            mask.querySelector('#achClose').addEventListener('click', closePanel);
+        }
+        document.getElementById('achStats2').textContent =
+            '已解锁 ' + unlockedCount() + ' / ' + ACH_DEFS.length +
+            ' ｜ 对局 ' + st.games + ' · 胜 ' + st.wins + ' · 负 ' + st.losses + ' · 和 ' + st.draws +
+            ' ｜ 最高连胜 ' + st.best + ' 场';
+        document.getElementById('achGrid').innerHTML = ACH_DEFS.map(function (d) {
+            const got = !!st.unlocked[d.id];
+            return '<div class="ach-item' + (got ? '' : ' locked') + '">' +
+                '<div class="ae">' + (got ? d.emoji : '🔒') + '</div>' +
+                '<div><div class="an">' + d.name + '</div><div class="ad">' + d.desc + (got ? ' · 已达成' : '') + '</div></div>' +
+                '</div>';
+        }).join('');
+        mask.classList.add('show');
+    }
+    function closePanel() { const m = document.getElementById('achMask'); if (m) m.classList.remove('show'); }
+    refreshBtn();
+    checkAll();
+    return { onGameEnd: onGameEnd, openPanel: openPanel, closePanel: closePanel, refreshBtn: refreshBtn, checkAll: checkAll };
+})();
+
 // ---------- 重置 / 悔棋 / 换边 / 难度 ----------
 function resetGame() {
     try { RAPFI.cancel(); aiToken++; } catch (e) {}
@@ -3647,6 +3804,7 @@ function resetGame() {
     gameOver = false;
     winner = null;
     gameRecorded = false;
+    undoThisGame = false;
     currentPlayer = BLACK;
     LOG.begin('════ 新对局 · ' + DIFF_NAME[difficulty] + ' · 你执' + (humanColor === BLACK ? '黑' : '白') + ' ════');
     try { LLM.onNewGame(); } catch (e) {}
@@ -3660,6 +3818,7 @@ function undoMove() {
     try { RAPFI.cancel(); aiToken++; } catch (e) {}
     if (gameOver) { resetGame(); return; }
     if (moveHistory.length === 0) return;
+    undoThisGame = true;
     // 撤销到"上一手人类落子之前"（撤掉 AI 应手 + 人类落子）
     let poppedHuman = false;
     while (moveHistory.length > 0 && !poppedHuman) {
@@ -3742,6 +3901,7 @@ document.getElementById('llmModel').addEventListener('change', function (e) { LL
 LLM.boot();
 document.getElementById('logSaveBtn').addEventListener('click', function () { try { LOG.save(); } catch (e) { console.warn('save log failed', e); } });
 document.getElementById('logClearBtn').addEventListener('click', function () { LOG.clear(); });
+document.getElementById('achBtn').addEventListener('click', function () { try { ACH.openPanel(); } catch (e) {} });
 document.querySelectorAll('.difficulty-btn[data-level]').forEach(btn => {
     btn.addEventListener('click', () => setDifficulty(parseInt(btn.dataset.level)));
 });
@@ -3760,7 +3920,8 @@ if (RAPFI.available) {
         '  · 困难 → 经典引擎   2 / 3 / 4s',
         '  · 灵拙 → mix9 神经网络（单步时长见下方强度档位，已超过网站「神之一手」）',
         '  · 快速模式 → 本机 AI（原「大师」算法，秒级出手，独立记忆/学习）',
-        '  · 点击棋盘开始对局；点「💾 保存日志」可导出完整对局思考日志'
+        '  · 点击棋盘开始对局；点「💾 保存日志」可导出完整对局思考日志',
+        '  · 🏆 成就系统：对局 / 连胜 / 速胜 / 战胜引擎…达成条件自动解锁'
     ]);
     setStrength(strengthLevel);
     LOG.add('  · 引擎资源按需加载：首屏更快；困难 / 灵拙首次使用会先下载一次（之后浏览器缓存）');
