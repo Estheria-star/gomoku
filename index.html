@@ -12,35 +12,35 @@
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            background: #2b5a3a;
+            background: radial-gradient(1200px 700px at 50% -140px, #f6fbff 0%, #e6f7ff 45%, #d4ebff 100%);
             font-family: 'Segoe UI', Roboto, sans-serif;
         }
         .container {
-            background: #d4b48c;
+            background: #ffffff;
             padding: 30px 40px 35px;
             border-radius: 40px;
-            box-shadow: 0 20px 35px rgba(0,0,0,0.7);
-            border-bottom: 8px solid #b3926a;
+            box-shadow: 0 20px 35px rgba(120,160,210,0.35);
+            border-bottom: 8px solid #bfdffa;
             display: flex;
             gap: 35px;
             flex-wrap: wrap;
             justify-content: center;
         }
         .board-wrapper {
-            background: #eaceb0;
+            background: #f0f9ff;
             padding: 20px;
             border-radius: 24px;
-            box-shadow: inset 0 0 0 2px #c2a07a;
+            box-shadow: inset 0 0 0 2px #cfe7fb;
         }
         canvas {
             display: block;
             margin: 0 auto;
             cursor: pointer;
-            background-color: #ebd5b0;
-            background-image: repeating-linear-gradient(90deg, rgba(101, 67, 33, 0.16) 0 1px, transparent 1px 35px), repeating-linear-gradient(0deg, rgba(101, 67, 33, 0.16) 0 1px, transparent 1px 35px);
+            background-color: #f4fbff;
+            background-image: repeating-linear-gradient(90deg, rgba(79, 147, 216, 0.22) 0 1px, transparent 1px 35px), repeating-linear-gradient(0deg, rgba(79, 147, 216, 0.22) 0 1px, transparent 1px 35px);
             background-position: 30px 30px;
             border-radius: 12px;
-            box-shadow: 0 0 0 2px #a5835e;
+            box-shadow: 0 0 0 2px #bfdffa;
             width: 550px;
             height: 550px;
             touch-action: none;
@@ -50,22 +50,22 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
-            color: #2d2d1c;
+            color: #25405c;
         }
         .title {
             font-size: 26px;
             font-weight: 800;
-            text-shadow: 2px 2px 0 #e3c9a0;
+            text-shadow: 2px 2px 0 #d8ecff;
             letter-spacing: 2px;
-            color: #3f2e1a;
+            color: #25405c;
             line-height: 1.2;
         }
-        .title small { display:block; font-size: 12px; font-weight:600; color:#6b4f30; letter-spacing:0; text-shadow:none; }
+        .title small { display:block; font-size: 12px; font-weight:600; color:#6f93b4; letter-spacing:0; text-shadow:none; }
         .control-group {
-            background: #f2e0c0;
+            background: #f2faff;
             padding: 14px 16px;
             border-radius: 20px;
-            box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: inset 0 2px 5px rgba(120,160,210,0.12);
             display: flex;
             flex-direction: column;
             gap: 10px;
@@ -83,22 +83,22 @@
             border-radius: 30px;
             font-weight: 700;
             font-size: 13px;
-            background: #c9b088;
-            color: #302215;
+            background: #d8ecff;
+            color: #2c4a6b;
             cursor: pointer;
             transition: all 0.2s;
-            box-shadow: 0 3px 0 #a0815e;
+            box-shadow: 0 3px 0 #b3d3f2;
         }
         .difficulty-btn.active {
-            background: #5d3f24;
-            color: #f3e3c6;
-            box-shadow: 0 3px 0 #3b2a18;
+            background: #6aabf2;
+            color: #ffffff;
+            box-shadow: 0 3px 0 #4a86c9;
             transform: scale(0.97);
         }
         .difficulty-btn:hover { filter: brightness(1.05); }
         .status-box {
-            background: #3f2e1a;
-            color: #eedbbc;
+            background: #6aabf2;
+            color: #ffffff;
             padding: 10px 16px;
             border-radius: 40px;
             text-align: center;
@@ -108,21 +108,21 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 2px solid #6b4f30;
+            border: 2px solid #4a86c9;
         }
         .think-box {
-            background: #2d2317;
-            color: #b6d9b0;
+            background: #16283f;
+            color: #9fd0ff;
             padding: 12px 16px;
             border-radius: 16px;
             min-height: 100px;
             font-size: 13px;
             line-height: 1.6;
-            border-left: 6px solid #87b17a;
+            border-left: 6px solid #6aabf2;
             overflow-y: auto;
             max-height: 300px;
             font-family: 'Courier New', monospace;
-            box-shadow: inset 0 0 10px #0f0b06;
+            box-shadow: inset 0 0 10px #081420;
             white-space: pre-wrap;
             word-break: break-word;
         }
@@ -137,17 +137,17 @@
             border-radius: 40px;
             font-weight: 700;
             font-size: 15px;
-            background: #7c5d3d;
+            background: #6aabf2;
             color: white;
             cursor: pointer;
-            box-shadow: 0 4px 0 #4d351f;
+            box-shadow: 0 4px 0 #4a86c9;
             transition: 0.1s ease;
         }
-        .action-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #4d351f; }
-        .action-btn.reset { background: #9e4e3b; box-shadow: 0 4px 0 #6e3426; }
+        .action-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #4a86c9; }
+        .action-btn.reset { background: #a5d1ff; color: #23456e; box-shadow: 0 4px 0 #6ea9e8; }
         .learning-badge {
             font-size: 12px;
-            background: #5f7c4e;
+            background: #6aabf2;
             color: white;
             padding: 3px 12px;
             border-radius: 30px;
@@ -157,8 +157,8 @@
         }
         .stats {
             font-size: 12px;
-            color: #4d3c28;
-            background: #e3cfae;
+            color: #3a5a7d;
+            background: #eaf6ff;
             padding: 7px 14px;
             border-radius: 16px;
             text-align: center;
@@ -167,47 +167,47 @@
         }
         .lbl { font-weight: 700; }
         .chat-box {
-            background: #24202b;
-            color: #e9def6;
+            background: #1b2c44;
+            color: #cfe6ff;
             padding: 12px 16px;
             border-radius: 16px;
             min-height: 96px;
             font-size: 13px;
             line-height: 1.7;
-            border-left: 6px solid #9c7fd0;
+            border-left: 6px solid #6aabf2;
             overflow-y: auto;
             max-height: 220px;
             white-space: pre-wrap;
             word-break: break-word;
-            box-shadow: inset 0 0 10px #0f0b06;
+            box-shadow: inset 0 0 10px #0a1526;
         }
         .api-input {
             width: 100%;
             padding: 8px 12px;
             border-radius: 14px;
-            border: 1px solid #b39468;
-            background: #fbf3e4;
+            border: 1px solid #bfdffa;
+            background: #f6fbff;
             font-size: 12px;
-            color: #3a2b18;
+            color: #2c4a6b;
             outline: none;
             font-family: inherit;
         }
-        .api-note { font-size: 11px; color: #7a6446; line-height: 1.5; }
+        .api-note { font-size: 11px; color: #6f93b4; line-height: 1.5; }
         .board-wrapper { display: flex; flex-direction: column; align-items: center; gap: 16px; }
         .llm-bubble {
             display: none;
             position: relative;
             width: 100%;
             max-width: 550px;
-            background: #fdf7ec;
-            color: #3a2b1c;
-            border: 2px solid #c8a97c;
+            background: #f7fbff;
+            color: #25405c;
+            border: 2px solid #bfdffa;
             border-radius: 18px;
             padding: 13px 20px;
             font-size: 15px;
             line-height: 1.75;
             min-height: 50px;
-            box-shadow: 0 6px 14px rgba(0,0,0,0.18);
+            box-shadow: 0 6px 14px rgba(120,160,210,0.22);
             white-space: pre-wrap;
             word-break: break-word;
         }
@@ -222,7 +222,7 @@
             transform: translateX(-50%);
             border-left: 10px solid transparent;
             border-right: 10px solid transparent;
-            border-bottom: 11px solid #c8a97c;
+            border-bottom: 11px solid #bfdffa;
         }
         .llm-bubble::after {
             content: '';
@@ -231,13 +231,13 @@
             transform: translateX(-50%);
             border-left: 9px solid transparent;
             border-right: 9px solid transparent;
-            border-bottom: 9px solid #fdf7ec;
+            border-bottom: 9px solid #f7fbff;
         }
-        .llm-bubble-tip { color: #7b6a9c; font-weight: 700; letter-spacing: 1px; }
+        .llm-bubble-tip { color: #5f88b8; font-weight: 700; letter-spacing: 1px; }
         .llm-bubble-text { min-height: 1.75em; }
         .llm-bubble-text .ch { display: inline-block; white-space: pre; opacity: 0; animation: chIn 0.32s ease-out forwards; }
         @keyframes chIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
-        .llm-bubble-text.caret::after { content: '▍'; margin-left: 1px; color: #a98cd6; animation: caretBlink 1.1s steps(1) infinite; }
+        .llm-bubble-text.caret::after { content: '▍'; margin-left: 1px; color: #6aabf2; animation: caretBlink 1.1s steps(1) infinite; }
         @keyframes caretBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
         @media (max-width: 900px) {
             .container { flex-direction: column; align-items: center; padding: 20px; }
@@ -249,16 +249,16 @@
         .boot-ov {
             position: absolute; inset: 0; z-index: 6;
             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
-            background: rgba(235, 213, 176, 0.95); border-radius: 12px;
+            background: rgba(244, 251, 255, 0.95); border-radius: 12px;
             text-align: center; padding: 0 26px;
             transition: opacity 0.7s ease;
         }
         .boot-ov.gone { opacity: 0; pointer-events: none; }
-        .boot-ov .spin { width: 36px; height: 36px; border-radius: 50%; border: 3px solid rgba(101, 67, 33, 0.25); border-top-color: #6b4f30; animation: bootspin 0.9s linear infinite; }
+        .boot-ov .spin { width: 36px; height: 36px; border-radius: 50%; border: 3px solid rgba(79, 147, 216, 0.25); border-top-color: #4f93d8; animation: bootspin 0.9s linear infinite; }
         @keyframes bootspin { to { transform: rotate(360deg); } }
-        .boot-ov .tt { font-size: 16px; font-weight: 800; color: #4a3319; letter-spacing: 1px; }
-        .boot-ov .st { font-size: 12.5px; font-weight: 600; color: #6b4f30; line-height: 1.7; }
-        .boot-ov .tip { font-size: 12px; color: #8f7350; min-height: 1.3em; }
+        .boot-ov .tt { font-size: 16px; font-weight: 800; color: #25405c; letter-spacing: 1px; }
+        .boot-ov .st { font-size: 12.5px; font-weight: 600; color: #5f88b8; line-height: 1.7; }
+        .boot-ov .tip { font-size: 12px; color: #7ba6cf; min-height: 1.3em; }
     </style>
 </head>
 <body>
@@ -315,7 +315,7 @@
         <div class="control-group">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <span style="font-weight:700;">接入 AI（DeepSeek）</span>
-                <span class="learning-badge" id="llmBadge" style="background:#5a5470;">未接入</span>
+                <span class="learning-badge" id="llmBadge" style="background:#8fb9e0;">未接入</span>
             </div>
             <input class="api-input" id="llmKey" type="password" placeholder="DeepSeek API Key（sk-…）" autocomplete="off" spellcheck="false">
             <div class="difficulty-row">
@@ -338,15 +338,15 @@
         <div class="think-box" id="thinkLog">🤔 AI 思考过程将显示在这里...</div>
         <div class="chat-box" id="chatLog">🍃 接入 DeepSeek 后，灵拙会在这里观战、分析与陪你说话…</div>
         <div class="action-row">
-            <button class="action-btn" id="logSaveBtn" style="background:#3f6b4a;box-shadow:0 4px 0 #294733;">💾 保存日志</button>
-            <button class="action-btn" id="logClearBtn" style="background:#5f5a6b;box-shadow:0 4px 0 #3c3a48;">🧽 清空日志</button>
+            <button class="action-btn" id="logSaveBtn" style="background:#6aabf2;box-shadow:0 4px 0 #4a86c9;">💾 保存日志</button>
+            <button class="action-btn" id="logClearBtn" style="background:#8aa7c4;box-shadow:0 4px 0 #5f7d9c;">🧽 清空日志</button>
         </div>
         <div class="action-row">
             <button class="action-btn" id="undoBtn">↩ 悔棋</button>
             <button class="action-btn reset" id="resetBtn">⟳ 新游戏</button>
         </div>
         <div class="action-row">
-            <button class="action-btn" id="clearMemBtn" style="background:#6d5a8a;box-shadow:0 4px 0 #483a5c;">🧹 清除AI记忆</button>
+            <button class="action-btn" id="clearMemBtn" style="background:#7f9bce;box-shadow:0 4px 0 #5a77ab;">🧹 清除AI记忆</button>
         </div>
         <div class="stats" id="statsDisplay">⚡ 学习: 位置热度积累中...</div>
     </div>
@@ -2084,7 +2084,7 @@ function updateLearningDisplay() {
         learnIndicator.style.background = '#b33e3e';
     } else {
         learnIndicator.innerText = '📖 收集中';
-        learnIndicator.style.background = '#5f7c4e';
+        learnIndicator.style.background = '#6aabf2';
     }
 }
 
@@ -2105,13 +2105,13 @@ function drawBoard() {
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
     const grad = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, W * 0.7);
-    grad.addColorStop(0, '#ebd5b0');
-    grad.addColorStop(1, '#c8a87c');
+    grad.addColorStop(0, '#f4fbff');
+    grad.addColorStop(1, '#d9ecff');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
     const cell = (canvas.width - 2 * MARGIN) / (SIZE - 1);
     const toPixel = (row, col) => ({ x: MARGIN + col * cell, y: MARGIN + row * cell });
-    ctx.strokeStyle = '#3d2b16';
+    ctx.strokeStyle = 'rgba(79, 147, 216, 0.8)';
     ctx.lineWidth = 1.2;
     for (let i = 0; i < SIZE; i++) {
         const pos = MARGIN + i * cell;
@@ -2125,14 +2125,14 @@ function drawBoard() {
         ctx.stroke();
     }
     const stars = [[7, 7], [3, 3], [11, 3], [3, 11], [11, 11]];
-    ctx.fillStyle = '#3d2b16';
+    ctx.fillStyle = 'rgba(79, 147, 216, 0.9)';
     for (const [r, c] of stars) {
         const p = toPixel(r, c);
         ctx.beginPath();
         ctx.arc(p.x, p.y, cell * 0.13, 0, 2 * Math.PI);
         ctx.fill();
     }
-    ctx.fillStyle = '#4a3020';
+    ctx.fillStyle = '#5f88b8';
     ctx.font = `${Math.max(10, cell * 0.35)}px 'Segoe UI',sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -3178,11 +3178,11 @@ const LLM = (function () {
     function logLine(t) { try { LOG.add(String(t)); } catch (e) {} }
     function setBadge(txt, bg) {
         const b = badgeEl();
-        if (b) { b.innerText = txt; b.style.background = bg || '#5a5470'; }
+        if (b) { b.innerText = txt; b.style.background = bg || '#8fb9e0'; }
     }
     function setConnected(v) {
         connected = !!v;
-        setBadge(connected ? '已接入' : '未接入', connected ? '#3f6b4a' : '#5a5470');
+        setBadge(connected ? '已接入' : '未接入', connected ? '#6aabf2' : '#8fb9e0');
         const kb = document.getElementById('llmConnectBtn');
         if (kb) kb.classList.toggle('active', connected);
     }
