@@ -2268,6 +2268,7 @@ function placeStone(row, col, player) {
         playerMoves.push({ row, col });
         updateHeatMap(row, col);
         noteHumanMove(row, col);
+        try { window.__argGomokuCheck && window.__argGomokuCheck(); } catch (e) {}
         try { LOG.add('▶ 你 (' + row + ', ' + col + ')'); } catch (e) {}
     }
     if (checkWinnerOnBoard(board, row, col, player)) {
@@ -2950,6 +2951,12 @@ function rapfiBudgetFor(kind, stoneCnt) {
 
 function aiTurn() {
     if (gameOver || currentPlayer !== aiColor) return;
+    if (window.__argGlyphPause) {
+        window.__argGlyphPause = 0;
+        try { LOG.add('🍃 灵拙忽然停手了……'); } catch (e) {}
+        setTimeout(aiTurn, 7000);
+        return;
+    }
     if (LLM.shouldPlay()) { LLM.aiMove(); return; }
     const kind = rapfiKindFor(difficulty);
     if (RAPFI.available && kind) { aiTurnEngine(kind); return; }
@@ -3674,7 +3681,8 @@ const LLM = (function () {
         connect: connect, disconnect: disconnect, setModel: setModel, setPlayAsAi: setPlayAsAi,
         boot: boot, onNewGame: onNewGame, shouldPlay: shouldPlay, aiMove: aiMove,
         onHumanTurn: onHumanTurn, onGameEnd: onGameEnd,
-        isConnected: function () { return connected; }
+        isConnected: function () { return connected; },
+        say: function (t) { try { pushChat(t); } catch (e) {} }
     };
 })();
 
@@ -3987,5 +3995,108 @@ window.__bootDone = true;
 <a class="wb-home" href="https://startian.top/" title="返回星恬的小站主页">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg><span>主页</span>
 </a>
+
+<script>
+/* ============================================================
+   🔮 ARG · 五子棋「T 字暗号」+ 精简进度机（2026-10-03）
+   用你的五颗子摆一个字母 T → 灵拙停手发话
+   ============================================================ */
+(function () {
+  'use strict';
+  /* ---- 精简进度机（共用 st_arg） ---- */
+  var KEY = 'st_arg';
+  var state = (function () {
+    var raw = null;
+    try { var m = document.cookie.match(/(?:^|;\s*)st_arg=([^;]*)/); if (m) raw = decodeURIComponent(m[1]); } catch (e) {}
+    if (!raw) { try { raw = localStorage.getItem(KEY); } catch (e) {} }
+    try { var d = JSON.parse(raw || '{}'); if (!d || typeof d !== 'object') d = {}; if (!Array.isArray(d.logs)) d.logs = []; return d; }
+    catch (e) { return { logs: [] }; }
+  })();
+  function save() {
+    var raw = JSON.stringify(state);
+    try { localStorage.setItem(KEY, raw); } catch (e) {}
+    try {
+      var v = encodeURIComponent(raw);
+      if (v.length < 3800) document.cookie = 'st_arg=' + v + ';domain=.startian.top;path=/;max-age=31536000;SameSite=Lax';
+    } catch (e) {}
+  }
+  if (!window.ARG || !window.ARG.collect) {
+    var tt = 0;
+    window.ARG = {
+      has: function (id) { return state.logs.indexOf(id) >= 0; },
+      count: function () { return state.logs.length; },
+      collect: function (id) {
+        if (state.logs.indexOf(id) >= 0) return false;
+        state.logs.push(id); save();
+        this.toast('📜 找到一篇日志（去主页头像连点 7 下看全文）');
+        return true;
+      },
+      reset: function () { state = { logs: [] }; save(); },
+      toast: function (msg) {
+        try {
+          var el = document.getElementById('__arg_toast');
+          if (!el) {
+            el = document.createElement('div');
+            el.id = '__arg_toast';
+            el.style.cssText = 'position:fixed;left:50%;bottom:30px;transform:translateX(-50%) translateY(16px);opacity:0;z-index:9994;background:rgba(12,17,32,.96);color:#eef4ff;border:1px solid rgba(198,214,240,.4);border-radius:999px;padding:12px 24px;font:700 13px/1.5 system-ui,sans-serif;box-shadow:0 18px 44px rgba(0,0,0,.5);transition:all .45s cubic-bezier(.2,.85,.3,1.1);pointer-events:none;max-width:88vw;text-align:center';
+            document.body.appendChild(el);
+          }
+          el.textContent = msg;
+          requestAnimationFrame(function () { el.style.opacity = '1'; el.style.transform = 'translateX(-50%)'; });
+          clearTimeout(tt);
+          tt = setTimeout(function () { el.style.opacity = '0'; el.style.transform = 'translateX(-50%) translateY(16px)'; }, 3000);
+        } catch (e) {}
+      }
+    };
+  }
+
+  /* ---- T 形检测 ---- */
+  var T_BASE = [[0, 0], [1, 0], [2, 0], [1, 1], [1, 2]];
+  function rot(p, r) { var x = p[0], y = p[1]; for (var i = 0; i < r; i++) { var nx = y, ny = -x; x = nx; y = ny; } return [x, y]; }
+  function norm(set) {
+    var mnx = 1e9, mny = 1e9;
+    set.forEach(function (p) { if (p[0] < mnx) mnx = p[0]; if (p[1] < mny) mny = p[1]; });
+    return set.map(function (p) { return (p[0] - mnx) + ',' + (p[1] - mny); }).sort().join(';');
+  }
+  var WANT = {};
+  (function () {
+    for (var r = 0; r < 4; r++) WANT[norm(T_BASE.map(function (p) { return rot(p, r); }))] = 1;
+  })();
+  function findT(pts) {
+    if (pts.length < 5 || pts.length > 20) return false;
+    var cur = [];
+    function comb(start, depth) {
+      if (depth === 5) {
+        if (WANT[norm(cur.map(function (i) { return pts[i]; }))]) return true;
+        return false;
+      }
+      for (var i = start; i < pts.length; i++) {
+        cur.push(i);
+        if (comb(i + 1, depth + 1)) return true;
+        cur.pop();
+      }
+      return false;
+    }
+    return comb(0, 0);
+  }
+
+  var FIRED = false;
+  window.__argGomokuCheck = function () {
+    try {
+      if (FIRED || !window.ARG || ARG.has('log3')) return;
+      if (typeof playerMoves === 'undefined' || !playerMoves.length) return;
+      var pts = playerMoves.map(function (m) { return [m.row, m.col]; });
+      if (!findT(pts)) return;
+      FIRED = true;
+      if (!ARG.collect('log3')) return;
+      window.__argGlyphPause = 1;
+      try { LLM.say('🍃 灵拙：……等一下。'); } catch (e) {}
+      setTimeout(function () { try { LLM.say('🍃 灵拙：这个形状，我认得。它跟我见过的第一张星图一模一样。'); } catch (e) {} }, 5200);
+      setTimeout(function () { try { LLM.say('🍃 灵拙：好了，继续下。对了——去几何工坊，有个式子，画出来你会懂。'); } catch (e) {} }, 10400);
+    } catch (e) {}
+  };
+  window.__argGomokuT = { check: window.__argGomokuCheck, findT: findT, want: WANT };
+})();
+</script>
 </body>
 </html>
