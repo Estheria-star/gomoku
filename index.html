@@ -4012,6 +4012,53 @@ document.querySelectorAll('.difficulty-btn[data-strength]').forEach(btn => {
     btn.addEventListener('click', () => setStrength(parseInt(btn.dataset.strength)));
 });
 
+/* ══════════════════════════════════════════════════════════
+   🏆 跨站成就 STAch（startian.top 全站共享；cookie .startian.top + localStorage 兜底）
+   v34 修复：本站此前未接入 STAch，"棋友"到访成就永远无法解锁
+   ══════════════════════════════════════════════════════════ */
+var STAch = (function () {
+    var KEY = 'st_ach';
+    function readCookie() {
+        var m = document.cookie.match(/(?:^|;\s*)st_ach=([^;]*)/);
+        if (!m) return null;
+        try { return JSON.parse(decodeURIComponent(m[1])) || []; } catch (e) { return null; }
+    }
+    function writeCookie(list) {
+        try {
+            var v = encodeURIComponent(JSON.stringify(list));
+            if (v.length < 3800) document.cookie = 'st_ach=' + v + ';domain=.startian.top;path=/;max-age=31536000;SameSite=Lax';
+        } catch (e) {}
+    }
+    var list = readCookie();
+    if (!list) { try { list = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { list = []; } }
+    if (!Array.isArray(list)) list = [];
+    function save() {
+        try { localStorage.setItem(KEY, JSON.stringify(list)); } catch (e) {}
+        writeCookie(list);
+    }
+    function unlock(id, name, ico) {
+        if (list.indexOf(id) >= 0) return false;
+        list.push(id);
+        save();
+        try {
+            var el = document.createElement('div');
+            el.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(16px);opacity:0;z-index:9999;background:rgba(22,26,48,.94);color:#fff;border:1px solid rgba(140,170,255,.42);border-radius:999px;padding:12px 22px;font:700 13.5px/1.4 system-ui,sans-serif;box-shadow:0 18px 44px rgba(0,0,0,.42);transition:opacity .4s ease,transform .4s cubic-bezier(.2,.85,.3,1.1);pointer-events:none;max-width:86vw';
+            el.textContent = '🏆 成就解锁：' + (ico ? ico + ' ' : '') + (name || id);
+            document.body.appendChild(el);
+            requestAnimationFrame(function () { el.style.opacity = '1'; el.style.transform = 'translateX(-50%)'; });
+            setTimeout(function () {
+                el.style.opacity = '0';
+                el.style.transform = 'translateX(-50%) translateY(16px)';
+                setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 500);
+            }, 3200);
+        } catch (e) {}
+        return true;
+    }
+    return { list: function () { return list.slice(); }, has: function (id) { return list.indexOf(id) >= 0; }, unlock: unlock };
+})();
+window.STAch = STAch;
+setTimeout(function () { STAch.unlock('site.gomoku', '棋友', '⚫'); }, 600);
+
 /* ══════════════════════════════════════════════════════
    🔊 落子音效系统（v33 · Web Audio 全合成，零资源零依赖）
    黑子沉、白子亮；按落子列定位立体声；胜利五声音阶琶音
