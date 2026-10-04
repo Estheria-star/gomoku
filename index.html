@@ -2256,6 +2256,10 @@ function drawBoard() {
         ctx.fill();
     }
     // 热度提示（学习激活且轮到 AI 时轻量显示不需要）
+    /* 🏆 胜利连线（叠画在最上层） */
+    if (window.__winline && window.__winline.active()) {
+        try { window.__winline.draw(ctx, toPixel, cell); } catch (e) {}
+    }
 }
 
 // ---------- 流程 ----------
@@ -2274,6 +2278,11 @@ function placeStone(row, col, player) {
     if (checkWinnerOnBoard(board, row, col, player)) {
         gameOver = true;
         winner = player;
+        /* 🏆 启动胜利连线动画（金色光带连起五子） */
+        try {
+            var _wl = window.__winline && window.__winline.findLine(row, col, player);
+            if (window.__winline && _wl) window.__winline.start(_wl, drawBoard);
+        } catch (e) {}
         try { LOG.add(player === humanColor ? '🏁 你五连 —— 你赢了' : '🏁 AI 五连 —— AI 赢了'); } catch (e) {}
         settleOpeningReply(player);
         drawBoard();
@@ -3846,6 +3855,7 @@ function resetGame() {
     humanStyle = null;
     gameOver = false;
     winner = null;
+    try { window.__winline && window.__winline.stop(); } catch (e) {}
     gameRecorded = false;
     undoThisGame = false;
     currentPlayer = BLACK;
@@ -3886,6 +3896,7 @@ function undoMove() {
     for (const m of playerMoves) addHeatAt(m.row, m.col, HEAT_GAIN);
     gameOver = false;
     winner = null;
+    try { window.__winline && window.__winline.stop(); } catch (e) {}
     gameRecorded = false;
     LOG.add('↩ 已悔棋');
     updateLearningDisplay();
@@ -4096,6 +4107,306 @@ window.__bootDone = true;
     } catch (e) {}
   };
   window.__argGomokuT = { check: window.__argGomokuCheck, findT: findT, want: WANT };
+})();
+</script>
+<script>
+/* ══════════════════════════════════════════════════════════════
+   🏆 胜利连线 · 精致动画（2026-10-04）
+   五连胜出后：金色光带自中点向两端展开（带星尘笔锋）→
+   落定闪光 → 流光两遍巡游 → 五子依次点亮星芒 →
+   之后长时间呼吸辉光，方便一眼看出是哪五子连成。
+   用法：window.__winline.start(window.__winline.findLine(row,col,color), drawBoard)
+        drawBoard() 尾部调用 window.__winline.draw(ctx, toPixel, cell)
+   ══════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+  function easeOutBack(t) { var c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); }
+  var rnd = Math.random;
+
+  /* —— 时间线（毫秒） —— */
+  var T_GROW = 780;    /* 光带展开 */
+  var T_FLASH = 300;   /* 落定闪光 */
+  var T_TRAVEL = 950;  /* 流光单程（共两遍往返） */
+  var T_STAR = 460;    /* 单颗星芒绽放 */
+  var T_TOTAL = T_GROW + T_FLASH + T_TRAVEL * 2;   /* ≈2990ms 后进入呼吸态 */
+
+  var st = null, rafId = 0, idleId = 0;
+
+  /* —— 找出经过 (row,col) 的整条连线（含两端延伸，5 子以上全画） —— */
+  function findLine(row, col, color) {
+    var SZ = 15;
+    try { if (typeof SIZE === 'number') SZ = SIZE; } catch (e) {}
+    var dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
+    var at = function (r, c) {
+      if (r < 0 || c < 0 || r >= SZ || c >= SZ) return false;
+      try { return board[r][c] === color; } catch (e) { return false; }
+    };
+    for (var d = 0; d < dirs.length; d++) {
+      var dx = dirs[d][0], dy = dirs[d][1];
+      var cells = [[row, col]];
+      for (var dir = -1; dir <= 1; dir += 2) {
+        for (var step = 1; step < SZ; step++) {
+          var nr = row + dx * step * dir, nc = col + dy * step * dir;
+          if (!at(nr, nc)) break;
+          cells.push([nr, nc]);
+        }
+      }
+      if (cells.length >= 5) return cells;
+    }
+    return null;
+  }
+
+  function start(cells, redraw) {
+    stop();
+    if (!cells || cells.length < 5 || typeof redraw !== 'function') return;
+    /* 沿线排序（按行，再按列）：任意方向都能排成有序 */
+    var ordered = cells.slice().sort(function (a, b) { return (a[0] - b[0]) || (a[1] - b[1]); });
+    st = {
+      cells: ordered,
+      redraw: redraw,
+      t0: performance.now(),
+      lastNow: performance.now(),
+      parts: [],                   /* 笔锋星尘 */
+      rings: [],                   /* 棋子涟漪 */
+      lit: ordered.map(function () { return 0; })   /* 各子被光带扫到的时刻 */
+    };
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function tick() {
+    rafId = 0;
+    if (!st) return;
+    try { st.redraw(); } catch (e) {}
+    var t = performance.now() - st.t0;
+    if (t < T_TOTAL) {
+      rafId = requestAnimationFrame(tick);
+    } else if (t < T_TOTAL + 90000) {
+      idleId = setTimeout(tick, 110);   /* 呼吸态：低频重绘，省电（90 秒后停） */
+    }
+    /* 之后完全定格：连线保留，由下一次 drawBoard 重绘 */
+  }
+
+  function stop() {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+    if (idleId) { clearTimeout(idleId); idleId = 0; }
+    st = null;
+  }
+
+  function active() { return !!st; }
+
+  function draw(ctx, toPixel, cell) {
+    if (!st || !cell) return;
+    var now = performance.now();
+    var t = now - st.t0;
+    var dt = Math.max(0, Math.min(64, now - st.lastNow));
+    st.lastNow = now;
+    var breathing = t > T_TOTAL;
+    var N = st.cells.length;
+
+    /* —— 几何（每帧重算，窗口缩放也稳） —— */
+    var pts = st.cells.map(function (c) { return toPixel(c[0], c[1]); });
+    var p0 = pts[0], pN = pts[N - 1];
+    var dx = pN.x - p0.x, dy = pN.y - p0.y;
+    var dist = Math.hypot(dx, dy) || 1;
+    var ux = dx / dist, uy = dy / dist;
+    var ext = cell * 0.62;
+    var A = { x: p0.x - ux * ext, y: p0.y - uy * ext };
+    var B = { x: pN.x + ux * ext, y: pN.y + uy * ext };
+    var Len = Math.hypot(B.x - A.x, B.y - A.y) || 1;
+    var at = function (q) { return { x: A.x + (B.x - A.x) * q, y: A.y + (B.y - A.y) * q }; };
+    var qOf = function (px, py) { return (((px - A.x) * ux + (py - A.y) * uy) / Len); };
+
+    /* —— 展开进度：从中点向两端 —— */
+    var eGrow = easeOutCubic(Math.min(1, t / T_GROW));
+    var q0 = 0.5 - eGrow * 0.5, q1 = 0.5 + eGrow * 0.5;
+    var S = at(q0), E = at(q1);
+
+    /* —— 棋子被光带扫到：依次点亮 + 涟漪 —— */
+    for (var i = 0; i < N; i++) {
+      if (st.lit[i]) continue;
+      var qi = qOf(pts[i].x, pts[i].y);
+      var ei = Math.min(1, Math.abs(qi - 0.5) * 2);
+      if (eGrow + 0.001 >= ei) {
+        st.lit[i] = Math.max(1, t);
+        st.rings.push({ x: pts[i].x, y: pts[i].y, t0: Math.max(1, t) });
+      }
+    }
+
+    /* —— 笔锋星尘：展开期从两端喷出 —— */
+    if (t < T_GROW && st.parts.length < 140) {
+      for (var s2 = 0; s2 < 2; s2++) {
+        var tip = s2 === 0 ? S : E;
+        if (rnd() < 0.8) {
+          var ang = rnd() * 6.2832;
+          st.parts.push({
+            x: tip.x + (rnd() - 0.5) * 3,
+            y: tip.y + (rnd() - 0.5) * 3,
+            vx: Math.cos(ang) * (0.02 + rnd() * 0.07),
+            vy: Math.sin(ang) * (0.02 + rnd() * 0.07) - 0.012,
+            age: 0,
+            life: 340 + rnd() * 380,
+            r: 0.7 + rnd() * 1.5,
+            bright: rnd() < 0.45
+          });
+        }
+      }
+    }
+    for (var pi = st.parts.length - 1; pi >= 0; pi--) {
+      var p = st.parts[pi];
+      p.age += dt;
+      if (p.age >= p.life) { st.parts.splice(pi, 1); continue; }
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vx *= 0.988;
+      p.vy *= 0.988;
+    }
+
+    var breath = breathing ? (0.8 + 0.2 * Math.sin(now / 640)) : 1;
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    /* ① 柔光晕（宽、淡、双层） */
+    ctx.strokeStyle = 'rgba(212, 150, 40, ' + (0.16 * breath).toFixed(3) + ')';
+    ctx.lineWidth = cell * 0.5;
+    ctx.beginPath(); ctx.moveTo(S.x, S.y); ctx.lineTo(E.x, E.y); ctx.stroke();
+    ctx.strokeStyle = 'rgba(222, 158, 44, ' + (0.22 * breath).toFixed(3) + ')';
+    ctx.lineWidth = cell * 0.3;
+    ctx.beginPath(); ctx.moveTo(S.x, S.y); ctx.lineTo(E.x, E.y); ctx.stroke();
+
+    /* ② 深金描边（浅底上也立得住） */
+    ctx.strokeStyle = 'rgba(173, 116, 18, ' + (0.4 * breath).toFixed(3) + ')';
+    ctx.lineWidth = cell * 0.185;
+    ctx.beginPath(); ctx.moveTo(S.x, S.y); ctx.lineTo(E.x, E.y); ctx.stroke();
+
+    /* ③ 主光带：双色渐变金 */
+    var g1 = ctx.createLinearGradient(A.x, A.y, B.x, B.y);
+    var aMain = 0.96 * breath;
+    g1.addColorStop(0, 'rgba(255, 226, 150, ' + aMain.toFixed(3) + ')');
+    g1.addColorStop(0.5, 'rgba(255, 184, 56, ' + aMain.toFixed(3) + ')');
+    g1.addColorStop(1, 'rgba(255, 226, 150, ' + aMain.toFixed(3) + ')');
+    ctx.strokeStyle = g1;
+    ctx.lineWidth = cell * 0.128;
+    ctx.beginPath(); ctx.moveTo(S.x, S.y); ctx.lineTo(E.x, E.y); ctx.stroke();
+
+    /* ④ 白色高光芯 */
+    var g2 = ctx.createLinearGradient(A.x, A.y, B.x, B.y);
+    g2.addColorStop(0, 'rgba(255, 253, 244, 0.10)');
+    g2.addColorStop(0.5, 'rgba(255, 253, 244, ' + (0.85 * breath).toFixed(3) + ')');
+    g2.addColorStop(1, 'rgba(255, 253, 244, 0.10)');
+    ctx.strokeStyle = g2;
+    ctx.lineWidth = Math.max(1.3, cell * 0.048);
+    ctx.beginPath(); ctx.moveTo(S.x, S.y); ctx.lineTo(E.x, E.y); ctx.stroke();
+
+    /* ⑤ 落定闪光（展开完成瞬间整线闪亮一下） */
+    var tF = t - T_GROW;
+    if (tF > 0 && tF < T_FLASH) {
+      var uF = tF / T_FLASH;
+      var fa = (1 - easeOutCubic(uF)) * 0.9;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = 'rgba(255, 238, 170, ' + fa.toFixed(3) + ')';
+      ctx.lineWidth = cell * (0.1 + 0.3 * uF);
+      ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    /* ⑥ 流光巡游（两遍，一去一回，带彗尾） */
+    var tT0 = T_GROW + T_FLASH;
+    if (t > tT0 && t < tT0 + T_TRAVEL * 2) {
+      var tt = t - tT0;
+      var pass = Math.floor(tt / T_TRAVEL);            /* 0 / 1 */
+      var local = (tt - pass * T_TRAVEL) / T_TRAVEL;   /* 0..1 */
+      var pos = (pass % 2 === 0) ? local : 1 - local;
+      var dir = (pass % 2 === 0) ? 1 : -1;
+      var alpha = Math.min(1, local / 0.1) * Math.min(1, (1 - local) / 0.14);
+      var tip2 = at(pos);
+      var rr = cell * 1.05;
+      var rg = ctx.createRadialGradient(tip2.x, tip2.y, 0, tip2.x, tip2.y, rr);
+      rg.addColorStop(0, 'rgba(255, 252, 230, ' + (0.95 * alpha).toFixed(3) + ')');
+      rg.addColorStop(0.4, 'rgba(255, 218, 110, ' + (0.5 * alpha).toFixed(3) + ')');
+      rg.addColorStop(1, 'rgba(255, 200, 80, 0)');
+      ctx.fillStyle = rg;
+      ctx.beginPath(); ctx.arc(tip2.x, tip2.y, rr, 0, 6.2832); ctx.fill();
+      /* 彗尾 */
+      var tailLen = cell * 1.15 * dir;
+      var tS = { x: tip2.x - ux * tailLen, y: tip2.y - uy * tailLen };
+      var g3 = ctx.createLinearGradient(tS.x, tS.y, tip2.x, tip2.y);
+      g3.addColorStop(0, 'rgba(255, 244, 200, 0)');
+      g3.addColorStop(1, 'rgba(255, 248, 214, ' + (0.7 * alpha).toFixed(3) + ')');
+      ctx.strokeStyle = g3;
+      ctx.lineWidth = cell * 0.24;
+      ctx.beginPath(); ctx.moveTo(tS.x, tS.y); ctx.lineTo(tip2.x, tip2.y); ctx.stroke();
+    }
+
+    /* ⑦ 棋子涟漪（被点亮时的扩散圈） */
+    for (var ri = st.rings.length - 1; ri >= 0; ri--) {
+      var ring = st.rings[ri];
+      var ru = (t - ring.t0) / 780;
+      if (ru >= 1) { st.rings.splice(ri, 1); continue; }
+      var er = easeOutCubic(ru);
+      ctx.strokeStyle = 'rgba(222, 158, 44, ' + ((1 - ru) * 0.55).toFixed(3) + ')';
+      ctx.lineWidth = Math.max(1, cell * 0.06 * (1 - ru) + 0.7);
+      ctx.beginPath(); ctx.arc(ring.x, ring.y, cell * (0.42 + er * 1.05), 0, 6.2832); ctx.stroke();
+    }
+
+    /* ⑧ 五子星芒（被扫到后依次绽放，随后随呼吸微闪） */
+    for (var si = 0; si < N; si++) {
+      if (!st.lit[si]) continue;
+      var sp = Math.min(1, (t - st.lit[si]) / T_STAR);
+      if (sp <= 0) continue;
+      var spE = easeOutBack(sp);
+      var star = pts[si];
+      var R = cell * 0.5 * spE;
+      if (R <= 0.3) continue;
+      var sAlpha = Math.min(1, sp) * (breathing ? (0.72 + 0.28 * Math.sin(now / 560 + si * 1.9)) : 1);
+      ctx.save();
+      ctx.translate(star.x, star.y);
+      ctx.fillStyle = 'rgba(255, 244, 196, ' + (0.92 * sAlpha).toFixed(3) + ')';
+      ctx.beginPath();
+      ctx.moveTo(0, -R);
+      ctx.quadraticCurveTo(R * 0.14, -R * 0.14, R, 0);
+      ctx.quadraticCurveTo(R * 0.14, R * 0.14, 0, R);
+      ctx.quadraticCurveTo(-R * 0.14, R * 0.14, -R, 0);
+      ctx.quadraticCurveTo(-R * 0.14, -R * 0.14, 0, -R);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 250, 224, ' + (0.85 * sAlpha).toFixed(3) + ')';
+      ctx.lineWidth = Math.max(1, cell * 0.028);
+      ctx.beginPath();
+      ctx.moveTo(0, -R * 1.7); ctx.lineTo(0, R * 1.7);
+      ctx.moveTo(-R * 1.7, 0); ctx.lineTo(R * 1.7, 0);
+      ctx.stroke();
+      var rgc = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 0.9);
+      rgc.addColorStop(0, 'rgba(255, 255, 255, ' + (0.9 * sAlpha).toFixed(3) + ')');
+      rgc.addColorStop(1, 'rgba(255, 232, 160, 0)');
+      ctx.fillStyle = rgc;
+      ctx.beginPath(); ctx.arc(0, 0, R * 0.9, 0, 6.2832); ctx.fill();
+      ctx.restore();
+    }
+
+    /* ⑨ 笔锋星尘 */
+    if (st.parts.length) {
+      ctx.save();
+      for (var pi2 = 0; pi2 < st.parts.length; pi2++) {
+        var pp = st.parts[pi2];
+        var pu = 1 - pp.age / pp.life;
+        ctx.globalAlpha = Math.min(1, pu * 1.5) * 0.85;
+        ctx.fillStyle = pp.bright ? 'rgba(255, 252, 240, 0.95)' : 'rgba(232, 166, 44, 0.95)';
+        ctx.beginPath();
+        ctx.arc(pp.x, pp.y, pp.r * (0.45 + pu * 0.55), 0, 6.2832);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  window.__winline = { start: start, stop: stop, active: active, findLine: findLine, draw: draw };
 })();
 </script>
 </body>
