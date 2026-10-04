@@ -1388,10 +1388,12 @@ function thinkMove(brd, aiColor, diff, humanColor) {
         }
         }
         const fr = Math.floor(Math.random() * 4);
-        const offs = [[6, 6], [6, 8], [8, 6], [8, 8]];
+        /* 🩹 v32 修复：斜位改为「相对人类首子」计算（原来硬编码 [[6,6],[6,8],[8,6],[8,8]] 是 15×15 时代的天元斜位，
+           在 19×19（天元=9,9）会落到偏左上、离中心 3 格的怪位置 → 中等模式后手第一手乱下） */
+        const offs = [[hr - 1, hc - 1], [hr - 1, hc + 1], [hr + 1, hc - 1], [hr + 1, hc + 1]];
         for (let i = 0; i < 4; i++) {
             const o = offs[(fr + i) % 4];
-            if (brd[o[0]][o[1]] === EMPTY) return { row: o[0], col: o[1], depth: 0, reason: ['🏁 开局：天元斜位'] };
+            if (isOnBoard(o[0], o[1]) && brd[o[0]][o[1]] === EMPTY) return { row: o[0], col: o[1], depth: 0, reason: ['🏁 开局：天元斜位'] };
         }
     }
 
