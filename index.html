@@ -65,8 +65,8 @@
             background-position: 30px 30px;
             border-radius: 12px;
             box-shadow: 0 0 0 2px #bfdffa;
-            width: 550px;
-            height: 550px;
+            width: 690px;
+            height: 690px;
             touch-action: none;
         }
         .sidebar {
@@ -222,7 +222,7 @@
             display: none;
             position: relative;
             width: 100%;
-            max-width: 550px;
+            max-width: 690px;
             background: #f7fbff;
             color: #25405c;
             border: 2px solid #bfdffa;
@@ -340,7 +340,7 @@
 <body>
 <div class="container">
     <div class="board-wrapper">
-        <div class="canvas-wrap"><canvas id="gobanCanvas" width="550" height="550"></canvas>
+        <div class="canvas-wrap"><canvas id="gobanCanvas" width="690" height="690"></canvas>
             <div class="boot-ov" id="bootOv">
                 <div class="spin"></div>
                 <div class="tt">正在铺设棋盘…</div>
@@ -457,7 +457,8 @@
 //  学习反制五子棋：模式识别 + 对局记忆 + VCF 冲四链 + 迭代加深
 //  支持：可选先后手 / 学习对手习惯与败因 / 重复开局反制
 // ================================================================
-const SIZE = 15;
+const SIZE = 19;
+const CENTER = (SIZE - 1) / 2;   // 天元坐标（19×19 → 9）
 const EMPTY = 0, BLACK = 1, WHITE = 2;
 const MARGIN = 30;
 const DIFF_NAME = ['简单', '中等', '困难', '灵拙', '快速开始'];
@@ -908,7 +909,7 @@ function genMoves(brd, turn, last, cap) {
     // 普通局面：近棋点
     const near = nearCells(brd);
     if (near.length === 0) {
-        return [{ r: 7, c: 7 }];
+        return [{ r: CENTER, c: CENTER }];
     }
     for (const m of near) {
         const k = m.r + ',' + m.c;
@@ -1364,7 +1365,7 @@ function thinkMove(brd, aiColor, diff, humanColor) {
             return { row: oppW0[0].r, col: oppW0[0].c, depth: 1, reason: ['🛡 堵住对方成五点'] };
         }
         const near0 = nearCells(brd);
-        if (near0.length === 0) return { row: 7, col: 7, depth: 0, reason: ['开局天元'] };
+        if (near0.length === 0) return { row: CENTER, col: CENTER, depth: 0, reason: ['开局天元'] };
         const m0 = near0[Math.floor(Math.random() * near0.length)];
         return { row: m0.r, col: m0.c, depth: 0, reason: ['🎲 随机走子'] };
     }
@@ -1372,9 +1373,9 @@ function thinkMove(brd, aiColor, diff, humanColor) {
     // 空盘/开盘快速通道
     let stoneCnt = 0;
     for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (brd[r][c] !== EMPTY) stoneCnt++;
-    if (stoneCnt === 0) return { row: 7, col: 7, depth: 0, reason: ['🏁 开局：天元'] };
+    if (stoneCnt === 0) return { row: CENTER, col: CENTER, depth: 0, reason: ['🏁 开局：天元'] };
     if (stoneCnt === 1) {
-        if (brd[7][7] === EMPTY) return { row: 7, col: 7, depth: 0, reason: ['🏁 开局：占天元'] };
+        if (brd[CENTER][CENTER] === EMPTY) return { row: CENTER, col: CENTER, depth: 0, reason: ['🏁 开局：占天元'] };
         let hr = -1, hc = -1;
         for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (brd[r][c] !== EMPTY) { hr = r; hc = c; }
         if (OPENING_BOOK_ON) {
@@ -1501,7 +1502,7 @@ function thinkMove(brd, aiColor, diff, humanColor) {
         last = { r: l.row, c: l.col, color: l.player };
     }
     const near = genMoves(brd, aiColor, last, 30);
-    if (near.length === 0) return { row: 7, col: 7, depth: 0, reason: ['开局天元'] };
+    if (near.length === 0) return { row: CENTER, col: CENTER, depth: 0, reason: ['开局天元'] };
     if (near[0] && near[0].forced) {
         let best = null, bestVal = -Infinity;
         for (const m of near) {
@@ -1802,18 +1803,18 @@ function queryOpeningBook(brd, aiColor) {
     // 仅服务 AI 执黑的天元局，前 6 手内
     if (aiColor !== BLACK) return null;
     if (moveHistory.length < 2 || moveHistory.length > 5) return null;
-    if (moveHistory[0].row !== 7 || moveHistory[0].col !== 7 || moveHistory[0].player !== BLACK) return null;
+    if (moveHistory[0].row !== CENTER || moveHistory[0].col !== CENTER || moveHistory[0].player !== BLACK) return null;
     // 逐手验证都落在天元为中心的近区，且序列与已落盘一致
     const key = [];
     for (const h of moveHistory) {
-        const dr = h.row - 7, dc = h.col - 7;
+        const dr = h.row - CENTER, dc = h.col - CENTER;
         if (Math.abs(dr) > 6 || Math.abs(dc) > 6) return null;
         key.push(dr + ',' + dc);
     }
     const k = key.join('|');
     const entry = OPEN_BOOK_CHAIN[k];
     if (!entry) return null;
-    const nr = 7 + entry.m[0], nc = 7 + entry.m[1];
+    const nr = CENTER + entry.m[0], nc = CENTER + entry.m[1];
     if (!isOnBoard(nr, nc) || brd[nr][nc] !== EMPTY) return null;
     return { row: nr, col: nc, name: entry.name };
 }
@@ -2203,7 +2204,7 @@ function drawBoard() {
         ctx.lineTo(pos, MARGIN + (SIZE - 1) * cell);
         ctx.stroke();
     }
-    const stars = [[7, 7], [3, 3], [11, 3], [3, 11], [11, 11]];
+    const stars = [[9, 9], [3, 3], [3, 9], [3, 15], [9, 3], [9, 15], [15, 3], [15, 9], [15, 15]];
     ctx.fillStyle = 'rgba(79, 147, 216, 0.9)';
     for (const [r, c] of stars) {
         const p = toPixel(r, c);
@@ -2263,6 +2264,20 @@ function drawBoard() {
 }
 
 // ---------- 流程 ----------
+/* 🛡 平局判定（统一出口：任何"棋盘满/无处落子"的场景都走这里） */
+function declareDraw(reason) {
+    if (gameOver) return;
+    gameOver = true;
+    winner = null;
+    try { LOG.add('🏁 ' + (reason || '棋盘已满') + ' —— 平局'); } catch (e) {}
+    try { window.__winline && window.__winline.stop(); } catch (e) {}
+    settleOpeningReply(null);
+    drawBoard();
+    updateStatus();
+    recordGameEnd(null);
+    try { LLM.onGameEnd(null); } catch (e) {}
+}
+
 function placeStone(row, col, player) {
     if (gameOver) return false;
     if (!isOnBoard(row, col) || board[row][col] !== EMPTY) return false;
@@ -2292,14 +2307,7 @@ function placeStone(row, col, player) {
         return true;
     }
     if (isBoardFull(board)) {
-        gameOver = true;
-        winner = null;
-        try { LOG.add('🏁 棋盘已满 —— 平局'); } catch (e) {}
-        settleOpeningReply(null);
-        drawBoard();
-        updateStatus();
-        recordGameEnd(null);
-        try { LLM.onGameEnd(null); } catch (e) {}
+        declareDraw('棋盘已满');
         return true;
     }
     currentPlayer = otherColor(player);
@@ -2400,7 +2408,7 @@ function openingReply() {
     if (moveHistory.length !== 1) return null;    // 只用于 AI 的第一手
     if (difficulty < 2) return null;              // 只服务引擎档
     const h = moveHistory[0];
-    if (Math.abs(h.row - 7) > 1 || Math.abs(h.col - 7) > 1) return null;
+    if (Math.abs(h.row - CENTER) > 1 || Math.abs(h.col - CENTER) > 1) return null;
     const cands = [];
     for (const off of OPEN_DIAG2) {
         const r = h.row + off[0], c = h.col + off[1];
@@ -2960,6 +2968,8 @@ function rapfiBudgetFor(kind, stoneCnt) {
 
 function aiTurn() {
     if (gameOver || currentPlayer !== aiColor) return;
+    /* 🛡 满盘保险：任何"无空位却轮到 AI"的异常状态 → 直接判平局，绝不让 AI 试图覆盖棋子 */
+    if (isBoardFull(board)) { declareDraw('棋盘已满'); return; }
     if (window.__argGlyphPause) {
         window.__argGlyphPause = 0;
         try { LOG.add('🍃 灵拙忽然停手了……'); } catch (e) {}
@@ -2975,10 +2985,31 @@ function aiTurn() {
 function aiTurnLocal() {
     const t0 = Date.now();
     const result = thinkMove(board, aiColor, difficulty, humanColor);
-    if (!result) { resetGame(); return; }
+    if (!result) {
+        /* 🛡 兜底：AI 找不到着法时找任意空位应对；真的无处可落才判平局（绝不静默重置棋局） */
+        const fb = findAnyEmptyCell();
+        if (fb) {
+            try { LOG.add('⚠ 本机引擎未给出着法，已自动找空位 (' + fb.row + ', ' + fb.col + ') 应对'); } catch (e) {}
+            placeStone(fb.row, fb.col, aiColor);
+        } else {
+            declareDraw('无处落子');
+        }
+        return;
+    }
     const ms = Date.now() - t0;
     LOG.add(buildThinkText(result, ms));
     placeStone(result.row, result.col, aiColor);
+}
+
+/* 从中心向外找最近的空位（兜底用） */
+function findAnyEmptyCell() {
+    let best = null, bestD = 1e9;
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+        if (board[r][c] !== EMPTY) continue;
+        const d = Math.abs(r - CENTER) + Math.abs(c - CENTER);
+        if (d < bestD) { bestD = d; best = { row: r, col: c }; }
+    }
+    return best;
 }
 
 // ==================== 学习反制 ↔ 内嵌引擎：学习候选 + 引擎对照验算 ====================
@@ -3163,7 +3194,7 @@ const LLM = (function () {
     try { apiKey = localStorage.getItem(KEY_STORE) || ''; } catch (e) {}
     try { const _m = localStorage.getItem(MODEL_STORE); if (_m) model = _m; } catch (e) {}
 
-    const COL_LETTERS = 'ABCDEFGHIJKLMNO';
+    const COL_LETTERS = 'ABCDEFGHIJKLMNOPQRS';
     const PERSONA_CORE = [
         '你叫「灵拙」。一位儒静文雅的年轻男生，社恐内向，话不多，却精通围棋、五子棋、将棋、象棋等多种棋类，算路清楚，性子温和。',
         '语气：平实自然的口语，短句，话不多也不要书面腔；可以带点小俏皮、小小的自嘲或逗趣，但不油腻、不刻薄、不嘲讽玩家，也不堆感叹号、不用颜文字和网络烂梗。称对面的人为「你」。',
@@ -3294,7 +3325,7 @@ const LLM = (function () {
                 return v === EMPTY ? '·' : (v === BLACK ? 'X' : 'O');
             }).join('  ') + '\n';
         }
-        out += '     （列 A~O 由左到右，行 1~15 由上到下；X = ' + (humanColor === BLACK ? '玩家' : aiName)
+        out += '     （列 A~' + COL_LETTERS.charAt(COL_LETTERS.length - 1) + ' 由左到右，行 1~' + SIZE + ' 由上到下；X = ' + (humanColor === BLACK ? '玩家' : aiName)
             + '，O = ' + (humanColor === BLACK ? aiName : '玩家') + '）\n';
         return out;
     }
@@ -3345,8 +3376,8 @@ const LLM = (function () {
         try {
             const saved = board[m.row][m.col];
             board[m.row][m.col] = EMPTY;
-            const b0 = colorThreats(board, m.player);
-            board[m.row][m.col] = saved;
+            let b0;
+            try { b0 = colorThreats(board, m.player); } finally { board[m.row][m.col] = saved; }
             const b1 = colorThreats(board, m.player);
             const names = [[ 'five', '五连' ], [ 'open4', '活四' ], [ 'four', '冲四' ], [ 'open3', '活三' ], [ 'sleep3', '眠三' ]];
             const made = [];
@@ -3848,6 +3879,7 @@ function resetGame() {
     try { RAPFI.cancel(); aiToken++; } catch (e) {}
     board = Array(SIZE).fill().map(() => Array(SIZE).fill(EMPTY));
     moveHistory = [];
+    try { moveHistory = moveHistory.filter(m => !m.__tmp); } catch (e) {}
     playerMoves = [];
     heatMap = Array(SIZE).fill().map(() => Array(SIZE).fill(0));
     totalHeat = 0;
@@ -3869,7 +3901,13 @@ function resetGame() {
 
 function undoMove() {
     try { RAPFI.cancel(); aiToken++; } catch (e) {}
-    if (gameOver) { resetGame(); return; }
+    /* 清理分析残留的临时记录（防错位） */
+    try { moveHistory = moveHistory.filter(m => !m.__tmp); } catch (e) {}
+    if (gameOver) {
+        /* ✅ 终局（胜/负/平）后点悔棋：撤销终局的一手（及应手），让对局继续
+           —— 以前这里会静默重置整盘（导致"棋盘满后子全没了"的困惑），现已修正 */
+        try { LOG.add('↩ 已撤销终局的一手，对局继续（想重开请点「新游戏」）'); } catch (e) {}
+    }
     if (moveHistory.length === 0) return;
     undoThisGame = true;
     // 撤销到"上一手人类落子之前"（撤掉 AI 应手 + 人类落子）
@@ -3967,6 +4005,7 @@ document.querySelectorAll('.difficulty-btn[data-strength]').forEach(btn => {
 });
 
 resetGame();
+try { window.__gomokuTest = { declareDraw: declareDraw, findAnyEmptyCell: findAnyEmptyCell, isBoardFull: isBoardFull }; } catch (e) {}
 console.log('✅ 学习反制五子棋已启动（内嵌 Rapfi 引擎：困难=经典 / 灵拙=mix9 神经网络）');
 if (RAPFI.available) {
     LOG.block([
