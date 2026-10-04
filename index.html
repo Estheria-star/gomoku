@@ -425,6 +425,9 @@
             <button class="action-btn" id="achBtn" style="background:#e6b84d;box-shadow:0 4px 0 #b8892e;">🏆 成就</button>
             <button class="action-btn" id="clearMemBtn" style="background:#7f9bce;box-shadow:0 4px 0 #5a77ab;">🧹 清除AI记忆</button>
         </div>
+        <div class="action-row">
+            <button class="action-btn" id="soundBtn" style="background:#9bc0ea;box-shadow:0 4px 0 #6f95c4;">🔊 音效：开</button>
+        </div>
         <div class="stats" id="statsDisplay">⚡ 学习: 位置热度积累中...</div>
     </div>
 </div>
@@ -2285,6 +2288,7 @@ function placeStone(row, col, player) {
     if (!isOnBoard(row, col) || board[row][col] !== EMPTY) return false;
     board[row][col] = player;
     moveHistory.push({ row, col, player });
+    try { SOUND.drop(player, col); } catch (e) {}
     if (player === humanColor) {
         playerMoves.push({ row, col });
         updateHeatMap(row, col);
@@ -2300,6 +2304,7 @@ function placeStone(row, col, player) {
             var _wl = window.__winline && window.__winline.findLine(row, col, player);
             if (window.__winline && _wl) window.__winline.start(_wl, drawBoard);
         } catch (e) {}
+        try { SOUND.win(); } catch (e) {}
         try { LOG.add(player === humanColor ? '🏁 你五连 —— 你赢了' : '🏁 AI 五连 —— AI 赢了'); } catch (e) {}
         settleOpeningReply(player);
         drawBoard();
@@ -3938,6 +3943,7 @@ function undoMove() {
     winner = null;
     try { window.__winline && window.__winline.stop(); } catch (e) {}
     gameRecorded = false;
+    try { SOUND.undo(); } catch (e) {}
     LOG.add('↩ 已悔棋');
     updateLearningDisplay();
     drawBoard();
@@ -4005,6 +4011,148 @@ document.querySelectorAll('.difficulty-btn[data-side]').forEach(btn => {
 document.querySelectorAll('.difficulty-btn[data-strength]').forEach(btn => {
     btn.addEventListener('click', () => setStrength(parseInt(btn.dataset.strength)));
 });
+
+/* ══════════════════════════════════════════════════════
+   🔊 落子音效系统（v33 · Web Audio 全合成，零资源零依赖）
+   黑子沉、白子亮；按落子列定位立体声；胜利五声音阶琶音
+   ══════════════════════════════════════════════════════ */
+const SOUND = (function () {
+    let ac = null, master = null, noiseBuf = null;
+    let on = true;
+    try { on = (localStorage.getItem('gomoku_sound_v1') || 'on') !== 'off'; } catch (e) {}
+
+    function ensure() {
+        if (!on) return null;
+        try {
+            if (!ac) {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (!AC) return null;
+                ac = new AC();
+                master = ac.createGain();
+                master.gain.value = 0.5;
+                master.connect(ac.destination);
+            }
+            if (ac.state === 'suspended') ac.resume();
+            return ac;
+        } catch (e) { return null; }
+    }
+
+    function noise() {
+        if (!noiseBuf) {
+            const n = Math.floor(ac.sampleRate * 0.08);
+            noiseBuf = ac.createBuffer(1, n, ac.sampleRate);
+            const d = noiseBuf.getChannelData(0);
+            for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+        }
+        return noiseBuf;
+    }
+
+    /* 木质落子声「嗒」：噪声瞬态（接触）+ 三角波下滑（棋盘共鸣） */
+    function drop(color, col) {
+        const a = ensure(); if (!a) return;
+        try {
+            const t0 = a.currentTime;
+            let out = master;
+            if (a.createStereoPanner && typeof col === 'number') {
+                const pan = a.createStereoPanner();
+                pan.pan.value = (col / (SIZE - 1) * 2 - 1) * 0.55;
+                pan.connect(master);
+                out = pan;
+            }
+            /* 体音：音高快速下落 → 敲击质感 */
+            const base = color === BLACK ? 196 : 262;
+            const osc = a.createOscillator();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(base * 2.7, t0);
+            osc.frequency.exponentialRampToValueAtTime(base, t0 + 0.04);
+            const og = a.createGain();
+            og.gain.setValueAtTime(0.0001, t0);
+            og.gain.exponentialRampToValueAtTime(0.5, t0 + 0.005);
+            og.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.13);
+            osc.connect(og).connect(out);
+            osc.start(t0); osc.stop(t0 + 0.16);
+            /* 噪声瞬态：短促的「咔」 */
+            const ns = a.createBufferSource(); ns.buffer = noise();
+            const bp = a.createBiquadFilter(); bp.type = 'bandpass';
+            bp.frequency.value = color === BLACK ? 2000 : 2600; bp.Q.value = 0.85;
+            const ng = a.createGain();
+            ng.gain.setValueAtTime(0.26, t0);
+            ng.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.05);
+            ns.connect(bp).connect(ng).connect(out);
+            ns.start(t0); ns.stop(t0 + 0.07);
+        } catch (e) {}
+    }
+
+    /* 胜利琶音：五声音阶（宫商角徵羽）上行，尾音延长 */
+    function win() {
+        const a = ensure(); if (!a) return;
+        try {
+            const t0 = a.currentTime + 0.18;
+            const seq = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
+            for (let i = 0; i < seq.length; i++) {
+                const st = t0 + i * 0.11;
+                const last = i === seq.length - 1;
+                const o = a.createOscillator();
+                o.type = 'sine';
+                o.frequency.value = seq[i];
+                const g = a.createGain();
+                g.gain.setValueAtTime(0.0001, st);
+                g.gain.exponentialRampToValueAtTime(last ? 0.42 : 0.26, st + 0.02);
+                g.gain.exponentialRampToValueAtTime(0.0001, st + (last ? 1.2 : 0.4));
+                o.connect(g).connect(master);
+                o.start(st); o.stop(st + 1.3);
+            }
+        } catch (e) {}
+    }
+
+    /* 悔棋：轻快下行 */
+    function undo() {
+        const a = ensure(); if (!a) return;
+        try {
+            const t0 = a.currentTime;
+            const o = a.createOscillator();
+            o.type = 'sine';
+            o.frequency.setValueAtTime(540, t0);
+            o.frequency.exponentialRampToValueAtTime(240, t0 + 0.13);
+            const g = a.createGain();
+            g.gain.setValueAtTime(0.0001, t0);
+            g.gain.exponentialRampToValueAtTime(0.2, t0 + 0.012);
+            g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.17);
+            o.connect(g).connect(master);
+            o.start(t0); o.stop(t0 + 0.19);
+        } catch (e) {}
+    }
+
+    function toggle() {
+        on = !on;
+        try { localStorage.setItem('gomoku_sound_v1', on ? 'on' : 'off'); } catch (e) {}
+        if (on) { const a = ensure(); if (a && master) master.gain.value = 0.5; }
+        else if (master) { try { master.gain.value = 0; } catch (e) {} }
+        return on;
+    }
+    function isOn() { return on; }
+
+    /* 首次点击预热（浏览器自动播放政策：手势内启动 AudioContext） */
+    try {
+        const warm = function () {
+            document.removeEventListener('pointerdown', warm, true);
+            ensure();
+        };
+        document.addEventListener('pointerdown', warm, true);
+    } catch (e) {}
+
+    return { drop: drop, win: win, undo: undo, toggle: toggle, isOn: isOn };
+})();
+
+/* 音效开关按钮绑定 */
+try {
+    const sb = document.getElementById('soundBtn');
+    if (sb) {
+        const sync = function () { sb.textContent = SOUND.isOn() ? '🔊 音效：开' : '🔇 音效：关'; };
+        sync();
+        sb.addEventListener('click', function () { SOUND.toggle(); sync(); });
+    }
+} catch (e) {}
 
 resetGame();
 try { window.__gomokuTest = { declareDraw: declareDraw, findAnyEmptyCell: findAnyEmptyCell, isBoardFull: isBoardFull }; } catch (e) {}
