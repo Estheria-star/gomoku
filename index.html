@@ -3833,6 +3833,8 @@ const ACH = (function () {
         refreshBtn();
         banner(def);
         try { LOG.add('🏆 成就解锁：' + def.name + ' —— ' + def.desc); } catch (e) {}
+        /* v35：桥接跨站成就柜（成就柜不展示的根因修复） */
+        try { if (window.STAch) window.STAch.unlock('gomoku.' + id, def.name, def.emoji); } catch (e) {}
     }
     function checkAll() { ACH_DEFS.forEach(function (d) { if (cond(d.id)) unlock(d.id); }); }
     function onGameEnd(winColor) {
@@ -3878,7 +3880,15 @@ const ACH = (function () {
     function closePanel() { const m = document.getElementById('achMask'); if (m) m.classList.remove('show'); }
     refreshBtn();
     checkAll();
-    return { onGameEnd: onGameEnd, openPanel: openPanel, closePanel: closePanel, refreshBtn: refreshBtn, checkAll: checkAll };
+    /* v35：把已解锁的站内成就补桥到跨站成就柜（历史数据补记） */
+    function bridgeAll() {
+        ACH_DEFS.forEach(function (d) {
+            if (st.unlocked[d.id]) {
+                try { if (window.STAch) window.STAch.unlock('gomoku.' + d.id, d.name, d.emoji); } catch (e) {}
+            }
+        });
+    }
+    return { onGameEnd: onGameEnd, openPanel: openPanel, closePanel: closePanel, refreshBtn: refreshBtn, checkAll: checkAll, bridgeAll: bridgeAll };
 })();
 
 // ---------- 重置 / 悔棋 / 换边 / 难度 ----------
@@ -4058,6 +4068,8 @@ var STAch = (function () {
 })();
 window.STAch = STAch;
 setTimeout(function () { STAch.unlock('site.gomoku', '棋友', '⚫'); }, 600);
+/* v35：STAch 就绪后补桥历史成就 */
+setTimeout(function () { try { ACH.bridgeAll && ACH.bridgeAll(); } catch (e) {} }, 1400);
 
 /* ══════════════════════════════════════════════════════
    🔊 落子音效系统（v33 · Web Audio 全合成，零资源零依赖）
