@@ -5236,6 +5236,10 @@ window.__bootDone = true;
     <div class="net-head"><span>🌐 联机大厅</span><button class="net-x" id="netClose">✕</button></div>
     <div class="net-statusbar"><span id="netConn">○ 未连接</span><span id="netBroker"></span></div>
     <div id="netLobbyView">
+      <div class="net-actions" id="netNickRow">
+        <span style="font-size:12.5px;font-weight:700;color:#4d6e8f">昵称</span>
+        <input id="netNickInput" maxlength="12" placeholder="给自己起个名字" autocomplete="off" style="flex:1;min-width:0;padding:8px;border:1.5px solid #cfe0f5;border-radius:10px;font-family:inherit">
+      </div>
       <div class="net-actions">
         <button class="net-btn pri" id="netCreate">🎲 创建房间</button>
         <span class="net-joinwrap"><input id="netJoinCode" maxlength="4" inputmode="numeric" placeholder="房间码"><button class="net-btn" id="netJoinBtn">进入</button></span>
@@ -5245,6 +5249,10 @@ window.__bootDone = true;
     </div>
     <div id="netRoomView" style="display:none">
       <div class="net-roomcode">房间码 <b id="netCode">0000</b> <button class="net-btn sm" id="netCopy">复制</button></div>
+      <div class="net-actions" style="padding-top:0;padding-bottom:6px">
+        <span style="font-size:12.5px;font-weight:700;color:#4d6e8f">昵称</span>
+        <input id="netNickInput2" maxlength="12" placeholder="给自己起个名字" autocomplete="off" style="flex:1;min-width:0;padding:8px;border:1.5px solid #cfe0f5;border-radius:10px;font-family:inherit">
+      </div>
       <div class="net-seats" id="netSeats"></div>
       <div class="net-roombtns">
         <button class="net-btn warn" id="netResign">🏳 认输</button>
@@ -5268,6 +5276,8 @@ var NET = (function () {
   var client = null, connecting = false, connCbs = [], libState = 0;
   var room = null, isHost = false, myColor = null, oppIn = false, playing = false;
   var pref = 'random', lastRoundAt = 0;
+  var nick = '', oppNick = '';
+  try { nick = String(localStorage.getItem('gomoku_nick_v1') || '').trim().slice(0, 12); } catch (e) {}
   var oppSeenAt = 0, lobbyMap = {}, seenSeqS = 0, seenSeqR = 0, hbTimer = null, uiTimer = null;
 
   function $(id) { return document.getElementById(id); }
@@ -5339,7 +5349,7 @@ var NET = (function () {
           try { client.options.reconnectPeriod = 3000; } catch (e) {}
           client.subscribe(LB, { qos: 0 });
           if (room) client.subscribe(RK + room, { qos: 1 });
-          if (room && !isHost) pub(RK + room, { t: 'hi' }, 1);
+          if (room && !isHost) pub(RK + room, { t: 'hi', nk: nick || '' }, 1);
           connCbs.splice(0).forEach(function (f) { f(null); });
         });
         client.on('close', function () { if (ok && client && !client.connected) setConn('lost'); });
@@ -5359,14 +5369,14 @@ var NET = (function () {
   /* ---- 大厅心跳（房主） ---- */
   function announce() {
     if (!room || !isHost) return;
-    pub(LB, { t: 'room', c: room, n: oppIn ? 2 : 1, g: playing ? 1 : 0 }, 0);
+    pub(LB, { t: 'room', c: room, n: oppIn ? 2 : 1, g: playing ? 1 : 0, h: nick || '' }, 0);
   }
   function startHeartbeat() {
     if (hbTimer) clearInterval(hbTimer);
     hbTimer = setInterval(function () {
       if (room) {
         announce();
-        if (!isHost && !oppIn) pub(RK + room, { t: 'hi' }, 1);   /* guest 等待期重发握手（防 miss welcome） */
+        if (!isHost && !oppIn) pub(RK + room, { t: 'hi', nk: nick || '' }, 1);   /* guest 等待期重发握手（防 miss welcome） */
         if (playing || oppIn) pub(RK + room, { t: 'ping' }, 0);
       } else if (client && client.connected) {
         /* 空转（不影响） */
@@ -5398,13 +5408,15 @@ var NET = (function () {
           if (oppIn) { pub(RK + room, { t: 'full' }, 1); return; }
           oppIn = true;
           var _side1 = pickBlackSide(); applyColors(_side1);
-          pub(RK + room, { t: 'welcome', black: _side1, pref: pref }, 1);
+          oppNick = String(m.nk || '').slice(0, 12);
+          pub(RK + room, { t: 'welcome', black: _side1, pref: pref, nk: nick || '' }, 1);
           beginMatch();
         }
         break;
       case 'welcome':
         if (!isHost && !oppIn) {
           oppIn = true;
+          oppNick = String(m.nk || '').slice(0, 12);
           applyColors(m.black === 'guest' ? 'guest' : 'host');
           if (m.pref) { pref = m.pref; renderPref(); }
           beginMatch();
@@ -5480,6 +5492,9 @@ var NET = (function () {
         oppSeenAt = Date.now();
         toastMsg('对手拒绝了悔棋');
         break;
+      case 'nick':
+        oppNick = String(m.v || '').slice(0, 12); renderSeats();
+        break;
       case 'ping':
         oppSeenAt = Date.now();
         break;
@@ -5487,6 +5502,17 @@ var NET = (function () {
   }
 
   /* ---- 房间生命周期 ---- */
+  /* ---- 昵称（本机持久化，握手/心跳广播，双方互见） ---- */
+  function setNick(v) {
+    nick = String(v || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 12);
+    try { localStorage.setItem('gomoku_nick_v1', nick); } catch (e) {}
+    ['netNickInput', 'netNickInput2'].forEach(function (id) { var inp = $(id); if (inp && inp.value !== nick) inp.value = nick; });
+    if (room && client && client.connected) pub(RK + room, { t: 'nick', v: nick }, 0);
+    renderSeats();
+    return nick;
+  }
+  function nickOfMe() { return nick || T('玩家'); }
+  function nickOfOpp() { return oppNick || T('对手'); }
   /* ---- 先后手：随机分配 / 房主选择（房主决策，发送 colors 保证双端一致） ---- */
   function pickBlackSide() {
     if (pref === 'host') return 'host';
@@ -5579,10 +5605,11 @@ var NET = (function () {
     if (room) leaveRoom(true);
     if (!client || !client.connected) { startConnect(function () { joinRoom(code, asHost); }); return; }
     room = code; isHost = !!asHost; myColor = asHost ? BLACK : WHITE;
+    oppNick = '';
     if (!asHost) pref = 'random';
     oppIn = false; playing = false; seenSeqS = 0; seenSeqR = 0;
     try { client.subscribe(RK + room, { qos: 1 }); } catch (e) {}
-    if (!isHost) pub(RK + room, { t: 'hi' }, 1);
+    if (!isHost) pub(RK + room, { t: 'hi', nk: nick || '' }, 1);
     announce();
     showRoomView(); renderSeats(); updateBadge(); applyMode(); hideAsk();
     toastMsg(T('已进入房间') + ' 「' + room + '」');
@@ -5630,7 +5657,7 @@ var NET = (function () {
     var mine = T('你') + (myColor === BLACK ? '（⚫黑）' : '（⚪白）');
     var opp = oppIn ? (T('对手') + (myColor === BLACK ? '（⚪白）' : '（⚫黑）')) : T('等待对手加入…');
     var st = playing ? ((gameOver ? T('对局结束') : (currentPlayer === humanColor ? T('轮到你') : T('等待对手…')))) : T('等待对手加入…');
-    el.innerText = T('你') + ': ' + (myColor === BLACK ? '⚫ ' + T('先手') : '⚪ ' + T('后手')) + '\n' + T('对手') + ': ' + (oppIn ? (myColor === BLACK ? '⚪ ' + T('后手') : '⚫ ' + T('先手')) : T('等待对手加入…')) + '\n' + T('状态') + ': ' + st;
+    el.innerText = nickOfMe() + ': ' + (myColor === BLACK ? '⚫ ' + T('先手') : '⚪ ' + T('后手')) + '\n' + (oppIn ? nickOfOpp() + ': ' + (myColor === BLACK ? '⚪ ' + T('后手') : '⚫ ' + T('先手')) : T('对手') + ': ' + T('等待对手加入…')) + '\n' + T('状态') + ': ' + st;
   }
   function renderLobby() {
     var box = $('netList'); if (!box) return;
@@ -5647,7 +5674,7 @@ var NET = (function () {
     box.innerHTML = rows.map(function (r) {
       var full = r.players >= 2 || r.playing;
       return '<div class="net-row"><b class="net-code">' + r.code + '</b>' +
-        '<span class="net-meta">' + r.players + '/2 · ' + (r.playing ? T('对局中') : T('等待对手')) + '</span>' +
+        '<span class="net-meta">' + (r.h ? ('<b style="color:#2c5f92">' + String(r.h).replace(/[<>&]/g, '') + '</b> · ') : '') + r.players + '/2 · ' + (r.playing ? T('对局中') : T('等待对手')) + '</span>' +
         (full ? '<span class="net-badge">' + T('已满') + '</span>' : '<button class="net-btn sm pri" data-join="' + r.code + '">' + T('进入') + '</button>') +
         '</div>';
     }).join('');
@@ -5683,7 +5710,7 @@ var NET = (function () {
     var box = $('netChatLog'); if (!box) return;
     var line = document.createElement('div');
     line.className = who;
-    line.textContent = (who === 'me' ? T('你') : T('对手')) + ': ' + txt;
+    line.textContent = (who === 'me' ? nickOfMe() : nickOfOpp()) + ': ' + txt;
     box.appendChild(line);
     box.scrollTop = box.scrollHeight;
   }
@@ -5739,7 +5766,7 @@ var NET = (function () {
   }
   function updateStatus() {
     var el = $('statusMsg'); if (!el) return;
-    var tail = ' · ' + T('房间') + ' ' + room;
+    var tail = ' · ' + T('房间') + ' ' + room + ' · ' + nickOfMe() + ' ⚔ ' + nickOfOpp();
     if (gameOver) {
       if (winner === null) el.innerText = T('🤝 平局') + tail;
       else if (winner === humanColor) el.innerText = T('🏆 你获胜！') + tail;
@@ -5751,10 +5778,11 @@ var NET = (function () {
   }
   function openLobby() {
     var m = $('netMask'); if (!m) return;
+    ['netNickInput', 'netNickInput2'].forEach(function (id) { var inp = $(id); if (inp) inp.value = nick; });
     m.classList.add('show');
     startConnect(function (err) {
       if (err) toastMsg('大厅连接失败，请检查网络后重试');
-      else if (room && !isHost && !oppIn) pub(RK + room, { t: 'hi' }, 1);
+      else if (room && !isHost && !oppIn) pub(RK + room, { t: 'hi', nk: nick || '' }, 1);
     });
     if (room) { showRoomView(); renderSeats(); } else { showLobbyView(); renderLobby(); }
   }
@@ -5785,6 +5813,12 @@ var NET = (function () {
     Array.prototype.forEach.call(document.querySelectorAll('.net-pref'), function (b) {
       b.addEventListener('click', function () { setPref(b.getAttribute('data-pref')); });
     });
+    ['netNickInput', 'netNickInput2'].forEach(function (id) {
+      var inp = $(id); if (!inp) return;
+      inp.value = nick;
+      inp.addEventListener('input', function () { setNick(inp.value); });
+      inp.addEventListener('blur', function () { setNick(inp.value); });
+    });
     var cs = $('netChatSend'); if (cs) cs.addEventListener('click', sendChat);
     var ci = $('netChatInput'); if (ci) ci.addEventListener('keydown', function (e) { if (e.key === 'Enter') sendChat(); });
     uiTimer = setInterval(function () { renderLobby(); if (playing && oppIn) renderSeats(); }, 1000);
@@ -5803,7 +5837,7 @@ var NET = (function () {
     updateStatus: updateStatus,
     openLobby: openLobby,
     leaveRoom: leaveRoom,
-    _dbg: function () { return { room: room, isHost: isHost, oppIn: oppIn, playing: playing, myColor: myColor, cid: cid, conn: !!(client && client.connected), broker: brokerUrl, seenS: seenSeqS, seenR: seenSeqR }; }
+    _dbg: function () { return { room: room, isHost: isHost, oppIn: oppIn, playing: playing, myColor: myColor, nick: nick, oppNick: oppNick, cid: cid, conn: !!(client && client.connected), broker: brokerUrl, seenS: seenSeqS, seenR: seenSeqR }; }
   };
 })();
 </script>
