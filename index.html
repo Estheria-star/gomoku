@@ -3220,7 +3220,7 @@ const RAPFI = (function () {
     const mt = {};      // kind -> main-thread engine state
     if (!available) {
         const nope = () => Promise.reject(new Error('no assets'));
-        return { available: false, init: nope, think: nope, cancel: function () {}, terminate: function () {}, parseSummary: function () { return {}; } };
+        return { available: false, init: nope, think: nope, cancel: function () {}, terminate: function () {}, parseSummary: function () { return {}; }, assets: { sources: function () { return []; }, cacheName: '' } };
     }
 
     function b64Text(b64) { return atob(b64); }
@@ -3230,27 +3230,155 @@ const RAPFI = (function () {
         return u8.buffer;
     }
 
-    /* —— v27：资源按需加载（网页版走 assets/ 异步拉取；单文件版走内嵌 base64）—— */
-    function fetchWithProgress(url, onProg) {
-        return fetch(url).then(function (resp) {
-            if (!resp.ok) throw new Error('HTTP ' + resp.status + ' ' + url);
-            const total = parseInt(resp.headers.get('Content-Length') || '0', 10);
-            if (!resp.body || !resp.body.getReader || !onProg) return resp.arrayBuffer();
-            const reader = resp.body.getReader(); const chunks = []; let got = 0;
-            return (function pump() {
-                return reader.read().then(function (r) {
-                    if (r.done) {
-                        const all = new Uint8Array(got); let off = 0;
-                        chunks.forEach(function (c) { all.set(c, off); off += c.length; });
-                        return all.buffer;
-                    }
-                    chunks.push(r.value); got += r.value.length;
-                    try { onProg(got, total); } catch (e) {}
-                    return pump();
+    /* —— v36：加载加固 —— Cache Storage 持久缓存 / 4 源回退 / fetch·XHR 双通道 / 完整性校验 —— */
+    const ASSET_ROOTS = [
+        ASSET_DIR,                                                                   /* 1. 同域（CF 边缘缓存，主路径） */
+        'https://fastly.jsdelivr.net/gh/Estheria-star/gomoku@main/assets/',          /* 2. jsDelivr (Fastly) */
+        'https://cdn.jsdelivr.net/gh/Estheria-star/gomoku@main/assets/',             /* 3. jsDelivr (主域名) */
+        'https://raw.githubusercontent.com/Estheria-star/gomoku/main/assets/'        /* 4. GitHub Raw 兜底 */
+    ];
+    const CACHE_NAME = 'gomoku-engine-assets-v1';
+
+    function cacheAvail() { try { return typeof caches !== 'undefined' && !!caches.open; } catch (e) { return false; } }
+    function cacheKey(kind, ext) { try { return location.origin + '/assets/' + kind + ext; } catch (e) { return 'assets:' + kind + ext; } }
+    function checkWasm(buf) {
+        if (!buf || buf.byteLength < 1024) return false;
+        try { const u = new Uint8Array(buf, 0, 4); return u[0] === 0x00 && u[1] === 0x61 && u[2] === 0x73 && u[3] === 0x6D; } catch (e) { return false; }
+    }
+    function cacheLoad(kind) {
+        if (!cacheAvail()) return Promise.resolve(null);
+        return caches.open(CACHE_NAME).then(function (c) {
+            return Promise.all([c.match(cacheKey(kind, '.js')), c.match(cacheKey(kind, '.wasm')), c.match(cacheKey(kind, '.data'))]).then(function (rs) {
+                if (!rs[0] || !rs[1] || !rs[2]) return null;
+                return Promise.all([rs[0].text(), rs[1].arrayBuffer(), rs[2].arrayBuffer()]).then(function (a) {
+                    if (!a[0] || a[0].length < 100) return null;
+                    if (!checkWasm(a[1])) return null;
+                    if (!a[2] || a[2].byteLength < 1000) return null;
+                    return { jsText: a[0], wasmBuf: a[1], dataBuf: a[2] };
                 });
-            })();
+            });
+        }).catch(function () { return null; });
+    }
+    function cacheStore(kind, assets) {
+        if (!cacheAvail()) return;
+        /* ⚠ 关键：init 流程紧接着会把原 buffer transfer 给 Worker（detach 后清空）。
+           必须在此刻（同步）先拷贝一份；若已异常则跳过写入——宁可不缓存，也不写坏数据。 */
+        let wb = null, db = null;
+        try {
+            wb = assets.wasmBuf ? assets.wasmBuf.slice(0) : null;
+            db = assets.dataBuf ? assets.dataBuf.slice(0) : null;
+        } catch (e) { wb = null; db = null; }
+        if (!wb || wb.byteLength < 1000 || !db || db.byteLength < 1000) return;
+        try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {}); } catch (e) {}
+        caches.open(CACHE_NAME).then(function (c) {
+            const hb = { 'Content-Type': 'application/octet-stream' };
+            return Promise.all([
+                c.put(cacheKey(kind, '.js'), new Response(assets.jsText, { headers: { 'Content-Type': 'text/javascript;charset=utf-8' } })),
+                c.put(cacheKey(kind, '.wasm'), new Response(wb, { headers: hb })),
+                c.put(cacheKey(kind, '.data'), new Response(db, { headers: hb }))
+            ]);
+        }).catch(function () {});
+    }
+
+    /* fetch 通道：流式 + 进度 + 空闲超时（首包 12s / 传输 45s）+ 长度校验 */
+    function fetchStream(url, wantText, onProg) {
+        return new Promise(function (resolve, reject) {
+            const ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+            let done = false, got = 0, phase = 0, lastT = Date.now();
+            function finish(fn, v) { if (done) return; done = true; clearInterval(checker); fn(v); }
+            const checker = setInterval(function () {
+                const idle = Date.now() - lastT;
+                if (idle > (phase === 0 ? 12000 : 45000)) {
+                    try { ctl && ctl.abort(); } catch (e) {}
+                    finish(reject, new Error('idle ' + Math.round(idle / 1000) + 's'));
+                }
+            }, 4000);
+            fetch(url, ctl ? { signal: ctl.signal } : {}).then(function (resp) {
+                if (!resp.ok) { finish(reject, new Error('HTTP ' + resp.status)); return null; }
+                phase = 1; lastT = Date.now();
+                if (wantText) {
+                    return resp.text().then(function (t) {
+                        if (!t || t.length < 100) { finish(reject, new Error('bad js payload')); return null; }
+                        finish(resolve, t); return null;
+                    });
+                }
+                if (!resp.body || !resp.body.getReader) {
+                    return resp.arrayBuffer().then(function (ab) {
+                        if (!ab || ab.byteLength < 1000) { finish(reject, new Error('bad binary payload')); return null; }
+                        finish(resolve, ab); return null;
+                    });
+                }
+                const total = parseInt(resp.headers.get('Content-Length') || '0', 10);
+                const reader = resp.body.getReader(); const chunks = [];
+                return (function pump() {
+                    return reader.read().then(function (r) {
+                        if (done) return null;
+                        if (r.done) {
+                            if (total && got !== total) { finish(reject, new Error('incomplete ' + got + '/' + total)); return null; }
+                            const all = new Uint8Array(got); let off = 0;
+                            chunks.forEach(function (c) { all.set(c, off); off += c.length; });
+                            finish(resolve, all.buffer); return null;
+                        }
+                        chunks.push(r.value); got += r.value.length; lastT = Date.now();
+                        try { onProg && onProg(got, total); } catch (e) {}
+                        return pump();
+                    });
+                })();
+            }).catch(function (err) { finish(reject, err instanceof Error ? err : new Error(String(err))); });
         });
     }
+
+    /* XHR 备选通道（个别拦截器/环境对 fetch 不友好时兜底） */
+    function xhrFetch(url, wantText, onProg) {
+        return new Promise(function (resolve, reject) {
+            try {
+                const x = new XMLHttpRequest();
+                x.open('GET', url, true);
+                x.responseType = wantText ? 'text' : 'arraybuffer';
+                x.timeout = 240000;
+                x.onload = function () {
+                    if (x.status < 200 || x.status >= 300) { reject(new Error('XHR HTTP ' + x.status)); return; }
+                    if (wantText) {
+                        const t = String(x.response || '');
+                        if (t.length < 100) { reject(new Error('XHR bad js')); return; }
+                        resolve(t);
+                    } else {
+                        const ab = x.response;
+                        if (!ab || ab.byteLength < 1000) { reject(new Error('XHR bad binary')); return; }
+                        resolve(ab);
+                    }
+                };
+                x.onerror = function () { reject(new Error('XHR network error')); };
+                x.ontimeout = function () { reject(new Error('XHR timeout')); };
+                x.onprogress = function (e) { try { onProg && onProg(e.loaded || 0, e.total || 0); } catch (er) {} };
+                x.send();
+            } catch (e) { reject(e); }
+        });
+    }
+
+    /* 单文件：4 源 × fetch/XHR 双通道依次尝试 */
+    function fetchAssetFile(name, wantText, onProg, tag) {
+        const tried = [];
+        function attempt(i) {
+            if (i >= ASSET_ROOTS.length) return Promise.reject(new Error('all sources failed: ' + name + ' [' + tried.join(' / ') + ']'));
+            const url = ASSET_ROOTS[i] + name;
+            return fetchStream(url, wantText, onProg).then(function (r) { return { r: r, i: i }; }, function (e1) {
+                return xhrFetch(url, wantText, onProg).then(function (r) { return { r: r, i: i }; }, function (e2) {
+                    tried.push('s' + i + ':' + ((e1 && e1.message) || e1));
+                    try {
+                        if (i === 0) LOG.add('  · ' + I18N.tr(tag) + '：' + I18N.tr('主源失败，切换备用下载源…'));
+                        else if (i < ASSET_ROOTS.length - 1) LOG.add('  · ' + I18N.tr(tag) + '：' + I18N.tr('备用源') + i + I18N.tr('失败，继续尝试…'));
+                    } catch (e) {}
+                    return attempt(i + 1);
+                });
+            });
+        }
+        return attempt(0).then(function (o) {
+            if (o.i > 0) { try { LOG.add('  · ' + I18N.tr(tag) + I18N.tr('：已从备用源加载 ✓')); } catch (e) {} }
+            return o.r;
+        });
+    }
+
     function ensureAssets(kind) {
         if (loaded[kind]) return loaded[kind];
         const p = (function () {
@@ -3259,23 +3387,39 @@ const RAPFI = (function () {
                 return Promise.resolve({ jsText: b64Text(a.js), b64w: a.wasm, b64d: a.data });
             }
             if (!canFetch) return Promise.reject(new Error('no assets'));
-            try { LOG.add(I18N.tr('📦 正在加载') + I18N.tr(kind === 'nnue' ? '「灵拙」神经网络资源' : '「困难」经典引擎资源') + I18N.tr('（首次需下载一次，之后会缓存）…')); } catch (e) {}
-            const mkProg = function (label) {
-                let lastMB = 0;
-                return function (got) {
-                    const mb = got / 1048576;
-                    if (mb - lastMB < 1) return;
-                    lastMB = mb;
-                    try { LOG.add('  · ' + I18N.tr(label) + I18N.tr('下载中…已接收') + ' ' + mb.toFixed(1) + ' MB'); } catch (e) {}
+            const label = kind === 'nnue' ? '「灵拙」神经网络资源' : '「困难」经典引擎资源';
+            /* ① 先查本地持久缓存：一次成功，之后永久秒加载 */
+            return cacheLoad(kind).then(function (cached) {
+                if (cached) {
+                    try { LOG.add('⚡ ' + I18N.tr(label) + I18N.tr('命中本地缓存，秒加载（无需网络）')); } catch (e) {}
+                    return cached;
+                }
+                try { LOG.add(I18N.tr('📦 正在加载') + I18N.tr(label) + I18N.tr('（首次需下载一次，成功后自动写入本地缓存）…')); } catch (e) {}
+                const mkProg = function (label2) {
+                    let lastMB = -1;
+                    return function (got) {
+                        const mb = got / 1048576;
+                        if (mb + 0.01 < lastMB) lastMB = -1;   /* 换源重试后进度复位 */
+                        if (mb - lastMB < 1) return;
+                        lastMB = mb;
+                        try { LOG.add('  · ' + I18N.tr(label2) + I18N.tr('下载中…已接收') + ' ' + mb.toFixed(1) + ' MB'); } catch (e) {}
+                    };
                 };
-            };
-            return Promise.all([
-                fetch(ASSET_DIR + kind + '.js').then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + kind + '.js'); return r.text(); }),
-                fetchWithProgress(ASSET_DIR + kind + '.wasm', kind === 'nnue' ? null : mkProg('引擎核心')),
-                fetchWithProgress(ASSET_DIR + kind + '.data', kind === 'nnue' ? mkProg('神经网络') : null)
-            ]).then(function (arr) {
-                try { LOG.add('  · ' + I18N.tr(kind === 'nnue' ? '灵拙' : '困难') + I18N.tr('引擎资源已就绪 ✓')); } catch (e) {}
-                return { jsText: arr[0], wasmBuf: arr[1], dataBuf: arr[2] };
+                /* ② 三文件并行，各自多源多通道下载 */
+                return Promise.all([
+                    fetchAssetFile(kind + '.js', true, null, '引擎脚本'),
+                    fetchAssetFile(kind + '.wasm', false, kind === 'nnue' ? null : mkProg('引擎核心'), '引擎核心'),
+                    fetchAssetFile(kind + '.data', false, kind === 'nnue' ? mkProg('神经网络') : null, '数据包')
+                ]).then(function (arr) {
+                    const assets = { jsText: arr[0], wasmBuf: arr[1], dataBuf: arr[2] };
+                    if (!checkWasm(assets.wasmBuf)) throw new Error('wasm 完整性校验失败');
+                    try { LOG.add('  · ' + I18N.tr(kind === 'nnue' ? '灵拙' : '困难') + I18N.tr('引擎资源已就绪 ✓')); } catch (e) {}
+                    cacheStore(kind, assets);
+                    return assets;
+                });
+            }).catch(function (err) {
+                try { LOG.add('  · ⚠ ' + I18N.tr(label) + I18N.tr('加载失败：') + ((err && err.message) || err) + I18N.tr('（已尝试 4 个下载源与双通道，请检查网络后重试）')); } catch (e) {}
+                throw err;
             });
         })();
         loaded[kind] = p;
@@ -3597,7 +3741,8 @@ const RAPFI = (function () {
         });
     }
 
-    return { available: available, init: init, think: play, best: best, parseCands: parseCands, poolTop: poolTop, cancel: cancel, terminate: terminate, parseSummary: parseSummary };
+    return { available: available, init: init, think: play, best: best, parseCands: parseCands, poolTop: poolTop, cancel: cancel, terminate: terminate, parseSummary: parseSummary,
+        assets: { sources: function () { return ASSET_ROOTS.slice(); }, cacheName: CACHE_NAME } };
 })();
 
 let aiBusy = false, aiToken = 0;
@@ -5199,6 +5344,20 @@ try { window.__gomokuTest = { declareDraw: declareDraw, findAnyEmptyCell: findAn
             return { on: studyModeOn, nb: nb, nw: nw, hint: studyHintPt ? (studyHintPt.row + ',' + studyHintPt.col) : null };
         }
     },
+    engine: {
+        sources: function () { try { return RAPFI.assets.sources(); } catch (e) { return []; } },
+        load: function (kind) { return RAPFI.init(kind || 'cls').then(function () { return 'ok'; }, function (e) { return 'fail:' + ((e && e.message) || e); }); },
+        cacheStatus: function () {
+            if (typeof caches === 'undefined') return Promise.resolve('no-caches-api');
+            return caches.open('gomoku-engine-assets-v1').then(function (c) { return c.keys(); }).then(function (ks) {
+                return ks.map(function (r) { return String(r.url).replace(/^https?:\/\/[^/]+/, ''); });
+            }).catch(function (e) { return 'err:' + e.message; });
+        },
+        clearCache: function () {
+            if (typeof caches === 'undefined') return Promise.resolve(false);
+            return caches.delete('gomoku-engine-assets-v1').catch(function () { return false; });
+        }
+    },
     renju: {
         info: function (r, c) { board[r][c] = BLACK; var _x = renjuForbiddenInfo(board, r, c, BLACK); board[r][c] = EMPTY; return _x; },
         foulList: function () { return renjuFoulList().map(function (p) { return p[0] + ',' + p[1]; }); },
@@ -5220,7 +5379,7 @@ if (RAPFI.available) {
         '  · 🔮 摆阵推理：在「AI 推理棋局」摆好局面，让经典引擎推演最优落点'
     ]);
     setStrength(strengthLevel);
-    LOG.add('  · 引擎资源按需加载：首屏更快；困难 / 灵拙首次使用会先下载一次（之后浏览器缓存）');
+    LOG.add('  · 引擎资源按需加载：首屏更快；困难 / 灵拙首次使用会先下载一次（成功后写入浏览器持久缓存，之后无需网络）');
     /* 后台预热引擎（不阻塞界面）：先当前档位、再灵拙神经网络 */
     setTimeout(function () {
         try {
