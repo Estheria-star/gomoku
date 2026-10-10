@@ -854,6 +854,36 @@ I18N.auto();
                 <button class="difficulty-btn" data-strength="3">极限</button>
             </div>
         </div>
+        <div class="control-group" id="studyGroup">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700;">AI 推理棋局</span>
+                <span class="learning-badge" id="studyBadge" style="background:#8fb9e0;">未开启</span>
+            </div>
+            <div class="difficulty-row">
+                <button class="difficulty-btn" id="studyEnterBtn" type="button" style="flex:1;background:#9d7bd8;color:#fff;">🔮 摆阵推理</button>
+            </div>
+            <div id="studyPanel" style="display:none;">
+                <div style="font-size:12px;font-weight:700;margin:8px 0 4px;">画笔</div>
+                <div class="difficulty-row">
+                    <button class="difficulty-btn study-brush active" data-brush="1" type="button">⚫ 黑子</button>
+                    <button class="difficulty-btn study-brush" data-brush="2" type="button">⚪ 白子</button>
+                    <button class="difficulty-btn study-brush" data-brush="0" type="button">🧹 擦除</button>
+                </div>
+                <div style="font-size:12px;font-weight:700;margin:8px 0 4px;">AI 推算哪一方</div>
+                <div class="difficulty-row">
+                    <button class="difficulty-btn study-side active" data-ai="1" type="button">AI 执黑</button>
+                    <button class="difficulty-btn study-side" data-ai="2" type="button">AI 执白</button>
+                </div>
+                <div class="difficulty-row">
+                    <button class="difficulty-btn" id="studyRunBtn" type="button" style="flex:1.5;background:#6aabf2;color:#fff;font-weight:700;">✨ 推算下一步</button>
+                    <button class="difficulty-btn" id="studyClearBtn" type="button" style="flex:1;">🧽 清空棋盘</button>
+                </div>
+                <div class="difficulty-row">
+                    <button class="difficulty-btn" id="studyExitBtn" type="button" style="flex:1;">🚪 退出推理</button>
+                </div>
+                <div id="studyNote" style="font-size:12px;font-weight:700;color:#6f93b4;margin-top:8px;line-height:1.6;"></div>
+            </div>
+        </div>
         <div class="control-group">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <span style="font-weight:700;">联机对战</span>
@@ -888,6 +918,22 @@ I18N.auto();
                 <button id="netChatSend" type="button">发送</button>
             </div>
         </div>
+        <div class="status-box" id="statusMsg">你的回合 (黑棋)</div>
+        <div class="action-row">
+            <button class="action-btn" id="achBtn" style="background:#e6b84d;box-shadow:0 4px 0 #b8892e;">🏆 成就</button>
+            <button class="action-btn" id="clearMemBtn" style="background:#7f9bce;box-shadow:0 4px 0 #5a77ab;">🧹 清除AI记忆</button>
+        </div>
+        <div class="action-row">
+            <button class="action-btn" id="soundBtn" style="background:#9bc0ea;box-shadow:0 4px 0 #6f95c4;">🔊 音效：开</button>
+            <button class="action-btn" id="ruleBtn" style="background:#e29a98;box-shadow:0 4px 0 #b87674;">⚖ 规则：黑方禁手</button>
+        </div>
+        <div class="stats" id="statsDisplay">⚡ 学习: 位置热度积累中...</div>
+        <div class="think-box" id="thinkLog">🤔 AI 思考过程将显示在这里...</div>
+        <div class="action-row">
+            <button class="action-btn" id="logSaveBtn" style="background:#6aabf2;box-shadow:0 4px 0 #4a86c9;">💾 保存日志</button>
+            <button class="action-btn" id="logClearBtn" style="background:#8aa7c4;box-shadow:0 4px 0 #5f7d9c;">🧽 清空日志</button>
+        </div>
+        <div class="chat-box" id="chatLog">🍃 接入 DeepSeek 后，灵拙会在这里观战、分析与陪你说话…</div>
         <div class="control-group" id="llmGroup">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <span style="font-weight:700;">接入 AI（DeepSeek）</span>
@@ -910,22 +956,6 @@ I18N.auto();
             </div>
             <div class="api-note">仅支持 <b>DeepSeek</b>（api.deepseek.com）。Key 只存在本机浏览器，直连官方接口，不经第三方。</div>
         </div>
-        <div class="status-box" id="statusMsg">你的回合 (黑棋)</div>
-        <div class="think-box" id="thinkLog">🤔 AI 思考过程将显示在这里...</div>
-        <div class="chat-box" id="chatLog">🍃 接入 DeepSeek 后，灵拙会在这里观战、分析与陪你说话…</div>
-        <div class="action-row">
-            <button class="action-btn" id="logSaveBtn" style="background:#6aabf2;box-shadow:0 4px 0 #4a86c9;">💾 保存日志</button>
-            <button class="action-btn" id="logClearBtn" style="background:#8aa7c4;box-shadow:0 4px 0 #5f7d9c;">🧽 清空日志</button>
-        </div>
-        <div class="action-row">
-            <button class="action-btn" id="achBtn" style="background:#e6b84d;box-shadow:0 4px 0 #b8892e;">🏆 成就</button>
-            <button class="action-btn" id="clearMemBtn" style="background:#7f9bce;box-shadow:0 4px 0 #5a77ab;">🧹 清除AI记忆</button>
-        </div>
-        <div class="action-row">
-            <button class="action-btn" id="soundBtn" style="background:#9bc0ea;box-shadow:0 4px 0 #6f95c4;">🔊 音效：开</button>
-            <button class="action-btn" id="ruleBtn" style="background:#e29a98;box-shadow:0 4px 0 #b87674;">⚖ 规则：黑方禁手</button>
-        </div>
-        <div class="stats" id="statsDisplay">⚡ 学习: 位置热度积累中...</div>
     </div>
 </div>
 <script>
@@ -1063,6 +1093,9 @@ let board = Array(SIZE).fill().map(() => Array(SIZE).fill(EMPTY));
 let currentPlayer = BLACK;
 let gameOver = false;
 let winner = null;
+/* 🔮 AI 推理棋局（摆阵推演）状态 */
+let studyModeOn = false;
+let studyHintPt = null;
 let moveHistory = [];       // {row,col,player}
 let playerMoves = [];       // 人类落子（学习用）
 let gameRecorded = false;
@@ -1238,7 +1271,7 @@ function lineValue(cells, color) {
    判定顺序：长连 > 成五 > 四四 > 三三；同一方向只归一类（是四不再算三）。
    - 引擎 AI（困难 / 灵拙）：Rapfi 以 INFO RULE 4 内部处理（含递归禁手）
    - 本模块负责：本机 AI 过滤 / 玩家落子判负 / 棋盘提示 / 引擎不可用时兜底 */
-var RULE_RENJU = (function () { try { return localStorage.getItem('startian_gomoku_rule_v1') !== '0'; } catch (e) { return true; } })();
+var RULE_RENJU = (function () { try { return localStorage.getItem('startian_gomoku_rule_v2') === '1'; } catch (e) { return false; } })();
 var winFoul = null;
 var foulCells = [];
 var FOUL_TEXT = { long: '长连禁手', '44': '四四禁手', '33': '三三禁手' };
@@ -2798,7 +2831,17 @@ function updateLearningDisplay() {
 
 function colorSym(c) { return c === BLACK ? '⚫黑' : '⚪白'; }
 
+/* 🔮 推理模式状态文本 */
+function studyStatusText() {
+    let nb = 0, nw = 0;
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+        if (board[r][c] === BLACK) nb++; else if (board[r][c] === WHITE) nw++;
+    }
+    return '🔮 摆阵推理中（黑 ' + nb + ' / 白 ' + nw + '）· 点棋盘摆子，选「AI 执黑/执白」后点「推算下一步」';
+}
+
 function updateStatus() {
+    if (studyModeOn) { statusMsg.innerText = studyStatusText(); return; }
     if (window.NET && NET.online()) { try { NET.updateStatus(); return; } catch (e) {} }
     if (gameOver) {
         if (winner === null) statusMsg.innerText = '🤝 平局';
@@ -2812,7 +2855,7 @@ function updateStatus() {
 }
 
 function drawBoard() {
-    try { refreshFoul2(); } catch (e) {}
+    try { if (!studyModeOn) refreshFoul2(); } catch (e) {}
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
     const grad = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, W * 0.7);
@@ -2880,7 +2923,7 @@ function drawBoard() {
         }
     }
     /* ⚖ 黑方禁手点提示（连珠规则 · 红色标记） */
-    if (RULE_RENJU && !gameOver && currentPlayer === BLACK && foulCells.length) {
+    if (RULE_RENJU && !gameOver && !studyModeOn && currentPlayer === BLACK && foulCells.length) {
         for (var _fi = 0; _fi < foulCells.length; _fi++) {
             var _fp = toPixel(foulCells[_fi][0], foulCells[_fi][1]);
             ctx.beginPath();
@@ -2894,7 +2937,7 @@ function drawBoard() {
             ctx.stroke();
         }
     }
-    if (moveHistory.length > 0) {
+    if (!studyModeOn && moveHistory.length > 0) {
         const last = moveHistory[moveHistory.length - 1];
         const p = toPixel(last.row, last.col);
         ctx.fillStyle = '#e33';
@@ -2906,6 +2949,26 @@ function drawBoard() {
     /* 🏆 胜利连线（叠画在最上层） */
     if (window.__winline && window.__winline.active()) {
         try { window.__winline.draw(ctx, toPixel, cell); } catch (e) {}
+    }
+    /* 🔮 推理模式：推荐落点标记（金色双环 + 十字） */
+    if (studyModeOn && studyHintPt) {
+        try {
+            const _hp = toPixel(studyHintPt.row, studyHintPt.col);
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 176, 0, 0.95)';
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(_hp.x, _hp.y, cell * 0.44, 0, 2 * Math.PI); ctx.stroke();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+            ctx.lineWidth = 1.4;
+            ctx.beginPath(); ctx.arc(_hp.x, _hp.y, cell * 0.53, 0, 2 * Math.PI); ctx.stroke();
+            ctx.strokeStyle = 'rgba(255, 176, 0, 0.9)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(_hp.x - cell * 0.18, _hp.y); ctx.lineTo(_hp.x + cell * 0.18, _hp.y);
+            ctx.moveTo(_hp.x, _hp.y - cell * 0.18); ctx.lineTo(_hp.x, _hp.y + cell * 0.18);
+            ctx.stroke();
+            ctx.restore();
+        } catch (e) {}
     }
 }
 
@@ -2925,6 +2988,7 @@ function declareDraw(reason) {
 }
 
 function placeStone(row, col, player) {
+    if (studyModeOn) return false;   /* 🔮 推理模式：不落子到对局 */
     if (gameOver) return false;
     if (!isOnBoard(row, col) || board[row][col] !== EMPTY) return false;
     /* ⚖ 本机 AI 的禁手规避：黑方 AI 选到禁手点时改走最近的合法点（联机对手不换点——走判负逻辑） */
@@ -3418,10 +3482,10 @@ const RAPFI = (function () {
         return parts.join(' ');
     }
 
-    function think(kind, budget, maxDepth, maxNodes) {
+    function think(kind, budget, maxDepth, maxNodes, bodyOverride, ruleOverride) {
         const b = boots[kind];
         if (!b || b.failed || !b.worker) return Promise.reject(new Error('engine unavailable'));
-        const body = buildBody();
+        const body = (bodyOverride != null) ? bodyOverride : buildBody();
         b.gen = (b.gen || 0) + 1;
         const gen = b.gen;
         return new Promise(function (resolve, reject) {
@@ -3434,7 +3498,7 @@ const RAPFI = (function () {
                 b.onMove = function (mv) { clearTimeout(timer); b.onFail = null; touchIdle(); resolve({ move: mv, cands: parseCands(b.cands), logs: b.logs.slice() }); };
             b.onFail = function (err) { clearTimeout(timer); b.onMove = null; touchIdle(); reject(err); };
             try {
-                b.worker.postMessage({ __think: true, gen: gen, boardSize: SIZE, timeoutTurnMs: budget, maxDepth: maxDepth, maxNodes: maxNodes, body: body, rule: (RULE_RENJU ? 4 : 0) });
+                b.worker.postMessage({ __think: true, gen: gen, boardSize: SIZE, timeoutTurnMs: budget, maxDepth: maxDepth, maxNodes: maxNodes, body: body, rule: ((ruleOverride != null) ? ruleOverride : (RULE_RENJU ? 4 : 0)) });
             } catch (e) { clearTimeout(timer); reject(e); }
         });
     }
@@ -3480,18 +3544,18 @@ const RAPFI = (function () {
         return mt[kind];
     }
 
-    function mtThink(kind, budget, maxDepth, maxNodes) {
+    function mtThink(kind, budget, maxDepth, maxNodes, bodyOverride, ruleOverride) {
         return mtInit(kind).then(function (st) {
             st.move = null; st.logs = [];
             const e = st.eng;
-            e.sendCommand('INFO RULE ' + (RULE_RENJU ? 4 : 0));
+            e.sendCommand('INFO RULE ' + ((ruleOverride != null) ? ruleOverride : (RULE_RENJU ? 4 : 0)));
             e.sendCommand('START ' + SIZE);
             e.sendCommand('INFO TIMEOUT_TURN ' + budget);
             e.sendCommand('INFO TIME_LEFT 600000');
             e.sendCommand('INFO MAX_DEPTH ' + maxDepth);
             e.sendCommand('INFO MAX_NODE ' + maxNodes);
             e.sendCommand('INFO SHOW_DETAIL 1');
-            const body = buildBody();
+            const body = (bodyOverride != null) ? bodyOverride : buildBody();
             if (body) e.sendCommand('BOARD ' + body + ' DONE'); else e.sendCommand('BEGIN');
             if (!st.move) throw new Error('no move');
             return { move: st.move, logs: st.logs.slice() };
@@ -3517,14 +3581,14 @@ const RAPFI = (function () {
     }
 
     // 统一入口：优先 Worker，失败转主线程
-    function play(kind, budget, maxDepth, maxNodes) {
+    function play(kind, budget, maxDepth, maxNodes, bodyOverride, ruleOverride) {
         return init(kind).then(function () {
-            return think(kind, budget, maxDepth, maxNodes);
+            return think(kind, budget, maxDepth, maxNodes, bodyOverride, ruleOverride);
         }, function (err) {
             terminate(kind);
             console.warn('[rapfi] Worker 不可用，转主线程：', err && err.message || err);
             try { LOG.add('⚠ 浏览器拦截了后台线程，改用主线程引擎（思考期间界面会短暂卡住）'); } catch (e) {}
-            return mtThink(kind, budget, maxDepth, maxNodes);
+            return mtThink(kind, budget, maxDepth, maxNodes, bodyOverride, ruleOverride);
         });
     }
 
@@ -3650,6 +3714,7 @@ function rapfiBudgetFor(kind, stoneCnt) {
 }
 
 function aiTurn() {
+    if (studyModeOn) return;   /* 🔮 推理模式：AI 不接管 */
     if (window.NET && NET.online()) return;   /* 联机时 AI 不接管 */
     if (gameOver || currentPlayer !== aiColor) return;
     /* 🛡 满盘保险：任何"无空位却轮到 AI"的异常状态 → 直接判平局，绝不让 AI 试图覆盖棋子 */
@@ -4412,6 +4477,7 @@ const LLM = (function () {
 
 // ---------- 交互 ----------
 function handleCanvasClick(e) {
+    if (studyModeOn) { studyBoardClick(e, false); return; }
     if (gameOver || currentPlayer !== humanColor) return;
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
@@ -4429,6 +4495,7 @@ function handleCanvasClick(e) {
 }
 
 function handleTouch(e) {
+    if (studyModeOn) { e.preventDefault(); studyBoardClick(e, true); return; }
     if (gameOver || currentPlayer !== humanColor) return;
     e.preventDefault();
     const touch = e.touches[0];
@@ -4576,6 +4643,7 @@ const ACH = (function () {
 
 // ---------- 重置 / 悔棋 / 换边 / 难度 ----------
 function resetGame() {
+    if (studyModeOn) { try { STUDY.exit(); } catch (e) {} }
     try { RAPFI.cancel(); aiToken++; } catch (e) {}
     board = Array(SIZE).fill().map(() => Array(SIZE).fill(EMPTY));
     moveHistory = [];
@@ -4684,6 +4752,191 @@ function setSide(side) {
         ? '♟ 你执黑先手 —— 点击棋盘落子'
         : '♟ AI 执黑先手 —— 自动开局，稍候轮到你');
 }
+
+// ---------- 🔮 AI 推理棋局（摆阵推演 · v35） ----------
+function studyBoardClick(e, isTouch) {
+    try {
+        const pt = isTouch ? ((e.touches && e.touches[0]) || null) : e;
+        if (!pt) return;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const mouseX = (pt.clientX - rect.left) * scaleX;
+        const mouseY = (pt.clientY - rect.top) * scaleY;
+        const cell = (canvas.width - 2 * MARGIN) / (SIZE - 1);
+        const col = Math.round((mouseX - MARGIN) / cell);
+        const row = Math.round((mouseY - MARGIN) / cell);
+        if (!isOnBoard(row, col)) return;
+        const px = MARGIN + col * cell, py = MARGIN + row * cell;
+        if (Math.hypot(mouseX - px, mouseY - py) > cell * 0.48) return;
+        STUDY.click(row, col);
+    } catch (err) {}
+}
+
+const STUDY = (function () {
+    let on = false, brush = BLACK, aiSide = BLACK, busy = false, token = 0;
+    let hint = null, backup = null, moves = [];
+
+    function _el(id) { return document.getElementById(id); }
+    function badge(txt, color) { try { const el = _el('studyBadge'); if (el) { el.textContent = txt; if (color) el.style.background = color; } } catch (e) {} }
+    function note(msg) { try { const el = _el('studyNote'); if (el) el.innerText = msg || ''; } catch (e) {} }
+    function cnt(color) { let n = 0; for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === color) n++; return n; }
+    function countText() { return '黑 ' + cnt(BLACK) + ' / 白 ' + cnt(WHITE); }
+    function refreshBrush() {
+        [].forEach.call(document.querySelectorAll('.study-brush'), function (b) { b.classList.toggle('active', (+b.getAttribute('data-brush')) === brush); });
+    }
+    function refreshSide() {
+        [].forEach.call(document.querySelectorAll('.study-side'), function (b) { b.classList.toggle('active', (+b.getAttribute('data-ai')) === aiSide); });
+    }
+    function setCell(row, col, color) {
+        if (!on || !isOnBoard(row, col)) return;
+        if (board[row][col] === color) return;
+        board[row][col] = color;
+        for (let i = moves.length - 1; i >= 0; i--) {
+            if (moves[i].row === row && moves[i].col === col) { moves.splice(i, 1); break; }
+        }
+        if (color !== EMPTY) moves.push({ row: row, col: col, color: color });
+        hint = null; studyHintPt = null;
+        badge('摆阵中 · ' + countText(), '#9d7bd8');
+        drawBoard(); updateStatus();
+    }
+    function click(row, col) {
+        if (!on || busy) return;
+        const cur = board[row][col];
+        if (brush === 0) setCell(row, col, EMPTY);
+        else if (cur === brush) setCell(row, col, EMPTY);
+        else setCell(row, col, brush);
+    }
+    function enter() {
+        if (on) return;
+        if (window.NET && window.NET.online()) { badge('联机中不可用', '#d2908e'); return; }
+        try { RAPFI.cancel(); aiToken++; } catch (e) {}
+        try { window.__winline && window.__winline.stop(); } catch (e) {}
+        backup = {
+            board: board.map(function (row) { return row.slice(); }),
+            moveHistory: moveHistory.slice(),
+            currentPlayer: currentPlayer, gameOver: gameOver, winner: winner, winFoul: winFoul
+        };
+        board = Array(SIZE).fill().map(function () { return Array(SIZE).fill(EMPTY); });
+        moveHistory = [];
+        gameOver = false; winner = null; winFoul = null;
+        try { foulCells = []; } catch (e) {}
+        on = true; studyModeOn = true;
+        brush = BLACK; aiSide = BLACK; busy = false;
+        hint = null; studyHintPt = null; moves = [];
+        const p = _el('studyPanel'); if (p) p.style.display = '';
+        const eb = _el('studyEnterBtn'); if (eb) eb.style.display = 'none';
+        refreshBrush(); refreshSide();
+        badge('摆阵中 · ' + countText(), '#9d7bd8');
+        note('点击棋盘摆子：同色点击移除、异色点击换色；选好「AI 推算哪一方」后点「推算下一步」' + (RULE_RENJU ? '。当前规则：黑方禁手' : '。当前规则：无禁手'));
+        try { LOG.add('🔮 进入摆阵推理模式' + (RULE_RENJU ? '（黑方禁手）' : '（无禁手）') + ' —— 摆好局面后点「推算下一步」'); } catch (e) {}
+        drawBoard(); updateStatus();
+    }
+    function exit() {
+        if (!on) return;
+        token++; busy = false;
+        on = false; studyModeOn = false;
+        hint = null; studyHintPt = null;
+        if (backup) {
+            board = backup.board;
+            moveHistory = backup.moveHistory;
+            currentPlayer = backup.currentPlayer;
+            gameOver = backup.gameOver;
+            winner = backup.winner;
+            winFoul = backup.winFoul;
+            backup = null;
+        }
+        moves = [];
+        const p = _el('studyPanel'); if (p) p.style.display = 'none';
+        const eb = _el('studyEnterBtn'); if (eb) eb.style.display = '';
+        badge('未开启', '#8fb9e0');
+        note('');
+        try { LOG.add('🔮 已退出摆阵推理，恢复原对局'); } catch (e) {}
+        try { drawBoard(); } catch (e) {}
+        try { updateStatus(); } catch (e) {}
+        if (!gameOver && currentPlayer === aiColor && !(window.NET && window.NET.online())) {
+            try { setTimeout(function () { aiTurn(); }, 400); } catch (e) {}
+        }
+    }
+    function clearAll() {
+        if (!on || busy) return;
+        board = Array(SIZE).fill().map(function () { return Array(SIZE).fill(EMPTY); });
+        moves = []; hint = null; studyHintPt = null;
+        badge('摆阵中 · ' + countText(), '#9d7bd8');
+        note('已清空棋盘，重新摆阵吧');
+        drawBoard(); updateStatus();
+    }
+    function run() {
+        if (!on || busy) return;
+        const nb = cnt(BLACK), nw = cnt(WHITE);
+        if (nb === 0 && nw === 0) { note('先在棋盘上摆几颗子吧'); return; }
+        const diff = nb - nw;
+        let toMove;
+        if (diff === 0) toMove = BLACK;
+        else if (diff === 1) toMove = WHITE;
+        else { note('⚠ 棋子数不平衡：黑 ' + nb + ' / 白 ' + nw + '。黑棋应等于白棋（轮黑走）或比白棋多 1（轮白走）'); return; }
+        if (toMove !== aiSide) {
+            note('⚠ 当前局面轮到' + (toMove === BLACK ? '黑方' : '白方') + '；请把「AI 推算哪一方」改选为执' + (toMove === BLACK ? '黑' : '白') + '，或调整棋子数量');
+            return;
+        }
+        const body = moves.map(function (m) { return m.row + ',' + m.col + ',' + (m.color === BLACK ? 1 : 2); }).join(' ');
+        busy = true; token++;
+        const t = token;
+        hint = null; studyHintPt = null;
+        badge('🧠 AI 推演中…', '#e6b84d');
+        note('⏳ 经典引擎推演中…最多 4 秒（首次使用需先加载引擎资源）');
+        drawBoard();
+        Promise.resolve().then(function () {
+            return RAPFI.think('cls', 4000, 99, 0, body, RULE_RENJU ? 4 : 0);
+        }).then(function (r) {
+            if (t !== token || !on) return;
+            busy = false;
+            const mv = r && r.move;
+            if (!mv || !isOnBoard(mv.row, mv.col) || board[mv.row][mv.col] !== EMPTY) {
+                note('引擎未给出有效着法（该局面可能已分胜负）');
+                badge('摆阵中 · ' + countText(), '#9d7bd8');
+                return;
+            }
+            hint = mv; studyHintPt = { row: mv.row, col: mv.col };
+            const s = RAPFI.parseSummary(r.logs || []);
+            const parts = [];
+            if (s.time) parts.push('用时 ' + s.time + 'ms');
+            if (s.depth) parts.push('深度 ' + s.depth);
+            if (s.ev) parts.push('评分 ' + s.ev);
+            note('✨ 推荐落点 (' + mv.row + ', ' + mv.col + ')' + (parts.length ? '　' + parts.join(' · ') : '') + '　—— 金圈已标出');
+            badge('已推演', '#6aabf2');
+            try { LOG.add('🔮 推理推荐 (' + mv.row + ', ' + mv.col + ')' + (parts.length ? '  ' + parts.join(' | ') : '')); } catch (e) {}
+            drawBoard();
+        }, function (err) {
+            if (t !== token || !on) return;
+            busy = false;
+            badge('摆阵中 · ' + countText(), '#9d7bd8');
+            note('⚠ 推演失败：' + ((err && err.message) || '引擎不可用') + '（首次使用需下载引擎资源，请再点一次）');
+            drawBoard();
+        });
+    }
+    return {
+        on: function () { return on; },
+        enter: enter, exit: exit, click: click, run: run, clearAll: clearAll,
+        set: function (r, c, v) { setCell(r, c, v); },
+        toggleBrush: function (v) { brush = v; refreshBrush(); },
+        toggleSide: function (v) { aiSide = v; refreshSide(); }
+    };
+})();
+/* AI 推理棋局 · 按钮绑定 */
+(function () {
+    function bind(id, fn) { const el = document.getElementById(id); if (el) el.addEventListener('click', fn); }
+    bind('studyEnterBtn', function () { STUDY.enter(); });
+    bind('studyExitBtn', function () { STUDY.exit(); });
+    bind('studyRunBtn', function () { STUDY.run(); });
+    bind('studyClearBtn', function () { STUDY.clearAll(); });
+    [].forEach.call(document.querySelectorAll('.study-brush'), function (b) {
+        b.addEventListener('click', function () { STUDY.toggleBrush(+b.getAttribute('data-brush')); });
+    });
+    [].forEach.call(document.querySelectorAll('.study-side'), function (b) {
+        b.addEventListener('click', function () { STUDY.toggleSide(+b.getAttribute('data-ai')); });
+    });
+})();
 
 // ---------- 初始化 ----------
 canvas.addEventListener('click', handleCanvasClick);
@@ -4912,7 +5165,7 @@ var syncRuleBtn2 = function () {
 };
 function toggleRuleRenju() {
     RULE_RENJU = !RULE_RENJU;
-    try { localStorage.setItem('startian_gomoku_rule_v1', RULE_RENJU ? '1' : '0'); } catch (e) {}
+    try { localStorage.setItem('startian_gomoku_rule_v2', RULE_RENJU ? '1' : '0'); } catch (e) {}
     syncRuleBtn2();
     try { drawBoard(); } catch (e) {}
     try { if (window.NET && NET.online() && NET.publishRule) NET.publishRule(RULE_RENJU ? 1 : 0); } catch (e) {}
@@ -4926,6 +5179,21 @@ try {
 
 resetGame();
 try { window.__gomokuTest = { declareDraw: declareDraw, findAnyEmptyCell: findAnyEmptyCell, isBoardFull: isBoardFull,
+    study: {
+        on: function () { return studyModeOn; },
+        enter: function () { STUDY.enter(); return studyModeOn; },
+        exit: function () { STUDY.exit(); return studyModeOn; },
+        set: function (r, c, v) { STUDY.set(r, c, v); return true; },
+        brush: function (v) { STUDY.toggleBrush(v); return true; },
+        ai: function (v) { STUDY.toggleSide(v); return true; },
+        run: function () { STUDY.run(); return true; },
+        clear: function () { STUDY.clearAll(); return true; },
+        state: function () {
+            var nb = 0, nw = 0;
+            for (var r = 0; r < SIZE; r++) for (var c = 0; c < SIZE; c++) { if (board[r][c] === BLACK) nb++; else if (board[r][c] === WHITE) nw++; }
+            return { on: studyModeOn, nb: nb, nw: nw, hint: studyHintPt ? (studyHintPt.row + ',' + studyHintPt.col) : null };
+        }
+    },
     renju: {
         info: function (r, c) { board[r][c] = BLACK; var _x = renjuForbiddenInfo(board, r, c, BLACK); board[r][c] = EMPTY; return _x; },
         foulList: function () { return renjuFoulList().map(function (p) { return p[0] + ',' + p[1]; }); },
@@ -4943,7 +5211,8 @@ if (RAPFI.available) {
         '  · 灵拙 → mix9 神经网络（单步时长见下方强度档位，已超过网站「神之一手」）',
         '  · 快速模式 → 本机 AI（原「大师」算法，秒级出手，独立记忆/学习）',
         '  · 点击棋盘开始对局；点「💾 保存日志」可导出完整对局思考日志',
-        '  · 🏆 成就系统：对局 / 连胜 / 速胜 / 战胜引擎…达成条件自动解锁'
+        '  · 🏆 成就系统：对局 / 连胜 / 速胜 / 战胜引擎…达成条件自动解锁',
+        '  · 🔮 摆阵推理：在「AI 推理棋局」摆好局面，让经典引擎推演最优落点'
     ]);
     setStrength(strengthLevel);
     LOG.add('  · 引擎资源按需加载：首屏更快；困难 / 灵拙首次使用会先下载一次（之后浏览器缓存）');
@@ -5674,7 +5943,7 @@ var NET = (function () {
       case 'rule':
         oppSeenAt = Date.now();
         RULE_RENJU = !!m.v;
-        try { localStorage.setItem('startian_gomoku_rule_v1', RULE_RENJU ? '1' : '0'); } catch (e) {}
+        try { localStorage.setItem('startian_gomoku_rule_v2', RULE_RENJU ? '1' : '0'); } catch (e) {}
         try { syncRuleBtn2(); } catch (e) {}
         try { drawBoard(); } catch (e) {}
         toastMsg('对手把规则改为「' + (RULE_RENJU ? '黑方禁手' : '无禁手') + '」');
