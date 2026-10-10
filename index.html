@@ -522,6 +522,8 @@ I18N.auto();
             flex-wrap: wrap;
             gap: 6px;
         }
+        /* 多行按钮叠放时的行距：按钮底部有 3px 实心投影，行距太小会视觉重合 */
+        .difficulty-row + .difficulty-row { margin-top: 9px; }
         .difficulty-btn {
             flex: 1;
             min-width: 52px;
