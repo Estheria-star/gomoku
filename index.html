@@ -923,6 +923,7 @@ I18N.auto();
         </div>
         <div class="action-row">
             <button class="action-btn" id="soundBtn" style="background:#9bc0ea;box-shadow:0 4px 0 #6f95c4;">🔊 音效：开</button>
+            <button class="action-btn" id="ruleBtn" style="background:#e29a98;box-shadow:0 4px 0 #b87674;">⚖ 规则：黑方禁手</button>
         </div>
         <div class="stats" id="statsDisplay">⚡ 学习: 位置热度积累中...</div>
     </div>
@@ -1230,6 +1231,131 @@ function lineValue(cells, color) {
         }
     }
     return total;
+}
+
+/* ==================== ⚖ 禁手规则（Renju · 黑方专用） ====================
+   三三 / 四四 / 长连（≥6 连）判负；同一步成五则豁免（成五优先）。
+   判定顺序：长连 > 成五 > 四四 > 三三；同一方向只归一类（是四不再算三）。
+   - 引擎 AI（困难 / 灵拙）：Rapfi 以 INFO RULE 4 内部处理（含递归禁手）
+   - 本模块负责：本机 AI 过滤 / 玩家落子判负 / 棋盘提示 / 引擎不可用时兜底 */
+var RULE_RENJU = (function () { try { return localStorage.getItem('startian_gomoku_rule_v1') !== '0'; } catch (e) { return true; } })();
+var winFoul = null;
+var foulCells = [];
+var FOUL_TEXT = { long: '长连禁手', '44': '四四禁手', '33': '三三禁手' };
+var RENJU_DIRS = [[1, 0], [0, 1], [1, 1], [1, -1]];
+
+/* (r,c) 在方向 (dx,dy) 上的同色连子数（含自身） */
+function renjuRunLen(brd, r, c, color, dx, dy) {
+    var n = 1;
+    for (var k = 1; k < 6; k++) {
+        var nr = r + dy * k, nc = c + dx * k;
+        if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE || brd[nr][nc] !== color) break;
+        n++;
+    }
+    for (var k2 = 1; k2 < 6; k2++) {
+        var nr2 = r - dy * k2, nc2 = c - dx * k2;
+        if (nr2 < 0 || nr2 >= SIZE || nc2 < 0 || nc2 >= SIZE || brd[nr2][nc2] !== color) break;
+        n++;
+    }
+    return n;
+}
+/* 便宜预筛：该方向 ±4 内同色子数（凑不出三就不必深判） */
+function renjuNearCount(brd, r, c, color, dx, dy) {
+    var cnt = 0;
+    for (var k = 1; k <= 4; k++) {
+        var nr = r + dy * k, nc = c + dx * k;
+        if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && brd[nr][nc] === color) cnt++;
+        var mr = r - dy * k, mc = c - dx * k;
+        if (mr >= 0 && mr < SIZE && mc >= 0 && mc < SIZE && brd[mr][mc] === color) cnt++;
+    }
+    return cnt;
+}
+/* 该方向上所有「落子后使 (r,c) 成五」的空点 */
+function renjuFivePts(brd, r, c, color, dx, dy) {
+    var out = [];
+    for (var k = -4; k <= 4; k++) {
+        if (k === 0) continue;
+        var nr = r + dy * k, nc = c + dx * k;
+        if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) continue;
+        if (brd[nr][nc] !== EMPTY) continue;
+        brd[nr][nc] = color;
+        var ok = renjuRunLen(brd, r, c, color, dx, dy) >= 5;
+        brd[nr][nc] = EMPTY;
+        if (ok) out.push([nr, nc]);
+    }
+    return out;
+}
+/* 该方向上 (r,c) 是否构成活三：存在空位 e，落 e 后恰好成四且有两个成五点 */
+function renjuHasLiveThree(brd, r, c, color, dx, dy) {
+    for (var k = -4; k <= 4; k++) {
+        if (k === 0) continue;
+        var nr = r + dy * k, nc = c + dx * k;
+        if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) continue;
+        if (brd[nr][nc] !== EMPTY) continue;
+        brd[nr][nc] = color;
+        var ok = renjuRunLen(brd, r, c, color, dx, dy) === 4 && renjuFivePts(brd, r, c, color, dx, dy).length >= 2;
+        brd[nr][nc] = EMPTY;
+        if (ok) return true;
+    }
+    return false;
+}
+/* 主判定：须在 (r,c) 已置子后调用。返回 { foul, five } */
+function renjuForbiddenInfo(brd, r, c, color) {
+    var five = false, long = false, fours = 0, threes = 0;
+    for (var d = 0; d < 4; d++) {
+        var dx = RENJU_DIRS[d][0], dy = RENJU_DIRS[d][1];
+        var n = renjuRunLen(brd, r, c, color, dx, dy);
+        if (n >= 6) { long = true; continue; }
+        if (n === 5) { five = true; continue; }
+        if (renjuNearCount(brd, r, c, color, dx, dy) < 2) continue;
+        var pts = renjuFivePts(brd, r, c, color, dx, dy);
+        if (pts.length >= 1) { fours++; continue; }
+        if (renjuHasLiveThree(brd, r, c, color, dx, dy)) threes++;
+    }
+    if (five && !long) return { foul: null, five: true };
+    if (long) return { foul: 'long', five: false };
+    if (fours >= 2) return { foul: '44', five: false };
+    if (threes >= 2) return { foul: '33', five: false };
+    return { foul: null, five: false };
+}
+/* 空位是否黑方禁手点（含规则开关与盘面校验） */
+function renjuIsFoulPoint(brd, r, c) {
+    if (!RULE_RENJU) return false;
+    if (r < 0 || r >= SIZE || c < 0 || c >= SIZE || brd[r][c] !== EMPTY) return false;
+    brd[r][c] = BLACK;
+    var res = renjuForbiddenInfo(brd, r, c, BLACK);
+    brd[r][c] = EMPTY;
+    return !!res.foul;
+}
+/* 黑方当前全部禁手点（用于棋盘提示；全盘扫描，225 格足够快） */
+function renjuFoulList() {
+    if (!RULE_RENJU) return [];
+    var out = [];
+    for (var r = 0; r < SIZE; r++) for (var c = 0; c < SIZE; c++) {
+        if (board[r][c] !== EMPTY) continue;
+        if (renjuIsFoulPoint(board, r, c)) out.push([r, c]);
+    }
+    return out;
+}
+/* 禁手点缓存刷新（按局面指纹懒计算） */
+var _foulKey = '';
+function refreshFoul2() {
+    var last = moveHistory.length ? moveHistory[moveHistory.length - 1] : null;
+    var key = moveHistory.length + ':' + (last ? (last.row + ',' + last.col) : '') + ':' + currentPlayer + ':' + (RULE_RENJU ? 1 : 0) + ':' + (gameOver ? 1 : 0);
+    if (key === _foulKey) return;
+    _foulKey = key;
+    foulCells = (RULE_RENJU && !gameOver && currentPlayer === BLACK) ? renjuFoulList() : [];
+}
+/* 兜底换点：离原选点最近的合法（非禁手）空位 */
+function renjuSafeAlt(br, bc) {
+    var best = null, bestD = 1e9;
+    for (var r = 0; r < SIZE; r++) for (var c = 0; c < SIZE; c++) {
+        if (board[r][c] !== EMPTY) continue;
+        if (renjuIsFoulPoint(board, r, c)) continue;
+        var d = Math.abs(r - br) + Math.abs(c - bc);
+        if (d < bestD) { bestD = d; best = [r, c]; }
+    }
+    return best;
 }
 
 // ---------- 精确威胁：落子后产生的"立刻成五"的空点 ----------
@@ -2677,6 +2803,7 @@ function updateStatus() {
     if (gameOver) {
         if (winner === null) statusMsg.innerText = '🤝 平局';
         else if (winner === humanColor) statusMsg.innerText = '🏆 你获胜！';
+        else if (winFoul) statusMsg.innerText = '⚖ 黑方' + (FOUL_TEXT[winFoul] || '禁手') + ' —— 判负！';
         else statusMsg.innerText = '🤖 AI 获胜！';
         return;
     }
@@ -2685,6 +2812,7 @@ function updateStatus() {
 }
 
 function drawBoard() {
+    try { refreshFoul2(); } catch (e) {}
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
     const grad = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, W * 0.7);
@@ -2751,6 +2879,21 @@ function drawBoard() {
             ctx.stroke();
         }
     }
+    /* ⚖ 黑方禁手点提示（连珠规则 · 红色标记） */
+    if (RULE_RENJU && !gameOver && currentPlayer === BLACK && foulCells.length) {
+        for (var _fi = 0; _fi < foulCells.length; _fi++) {
+            var _fp = toPixel(foulCells[_fi][0], foulCells[_fi][1]);
+            ctx.beginPath();
+            ctx.arc(_fp.x, _fp.y, cell * 0.17, 0, 2 * Math.PI);
+            ctx.fillStyle = 'rgba(255, 59, 48, 0.75)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.arc(_fp.x, _fp.y, cell * 0.17, 0, 2 * Math.PI);
+            ctx.stroke();
+        }
+    }
     if (moveHistory.length > 0) {
         const last = moveHistory[moveHistory.length - 1];
         const p = toPixel(last.row, last.col);
@@ -2784,6 +2927,18 @@ function declareDraw(reason) {
 function placeStone(row, col, player) {
     if (gameOver) return false;
     if (!isOnBoard(row, col) || board[row][col] !== EMPTY) return false;
+    /* ⚖ 本机 AI 的禁手规避：黑方 AI 选到禁手点时改走最近的合法点（联机对手不换点——走判负逻辑） */
+    if (RULE_RENJU && player === BLACK && player !== humanColor && !(window.NET && NET.online())) {
+        try {
+            if (renjuIsFoulPoint(board, row, col)) {
+                var _alt = renjuSafeAlt(row, col);
+                if (_alt) {
+                    try { LOG.add('⚖ AI 原选点踩禁手 → 改走 (' + _alt[0] + ', ' + _alt[1] + ')'); } catch (e) {}
+                    row = _alt[0]; col = _alt[1];
+                }
+            }
+        } catch (e) {}
+    }
     board[row][col] = player;
     moveHistory.push({ row, col, player });
     try { SOUND.drop(player, col); } catch (e) {}
@@ -2793,6 +2948,23 @@ function placeStone(row, col, player) {
         noteHumanMove(row, col);
         try { window.__argGomokuCheck && window.__argGomokuCheck(); } catch (e) {}
         try { LOG.add('▶ 你 (' + row + ', ' + col + ')'); } catch (e) {}
+    }
+    /* ⚖ 禁手裁决（黑方 · 连珠规则）：长连 / 四四 / 三三判负；成五豁免（成五优先于四四/三三，长连优先于成五） */
+    if (RULE_RENJU && player === BLACK) {
+        var _rj = renjuForbiddenInfo(board, row, col, BLACK);
+        if (_rj.foul) {
+            gameOver = true;
+            winner = WHITE;
+            winFoul = _rj.foul;
+            try { SOUND.win(); } catch (e) {}
+            try { LOG.add('⚖ 黑方 ' + FOUL_TEXT[_rj.foul] + ' —— 判负'); } catch (e) {}
+            settleOpeningReply(WHITE);
+            drawBoard();
+            updateStatus();
+            recordGameEnd(winner);
+            try { LLM.onGameEnd(winner); } catch (e) {}
+            return true;
+        }
     }
     if (checkWinnerOnBoard(board, row, col, player)) {
         gameOver = true;
@@ -3060,7 +3232,7 @@ const RAPFI = (function () {
         "function __run(d){",
         "  var e=self.__eng;",
         "  self.__g=d.gen||0;",
-        "  e.sendCommand('INFO RULE 0');",
+        "  e.sendCommand('INFO RULE '+(d.rule?4:0));",
         "  e.sendCommand('START '+d.boardSize);",
         "  e.sendCommand('INFO TIMEOUT_TURN '+d.timeoutTurnMs);",
         "  e.sendCommand('INFO TIME_LEFT 600000');",
@@ -3089,7 +3261,7 @@ const RAPFI = (function () {
         "      self.__g=d.gen||0;",
         "      self.__bm={mv:0,cs:[]};",
         "      var eb=self.__eng;",
-        "      eb.sendCommand('INFO RULE 0');",
+        "      eb.sendCommand('INFO RULE '+(d.rule?4:0));",
         "      eb.sendCommand('START '+d.boardSize);",
         "      eb.sendCommand('INFO TIME_LEFT 600000');",
         "      eb.sendCommand('INFO MAX_DEPTH '+d.maxDepth);",
@@ -3262,7 +3434,7 @@ const RAPFI = (function () {
                 b.onMove = function (mv) { clearTimeout(timer); b.onFail = null; touchIdle(); resolve({ move: mv, cands: parseCands(b.cands), logs: b.logs.slice() }); };
             b.onFail = function (err) { clearTimeout(timer); b.onMove = null; touchIdle(); reject(err); };
             try {
-                b.worker.postMessage({ __think: true, gen: gen, boardSize: SIZE, timeoutTurnMs: budget, maxDepth: maxDepth, maxNodes: maxNodes, body: body });
+                b.worker.postMessage({ __think: true, gen: gen, boardSize: SIZE, timeoutTurnMs: budget, maxDepth: maxDepth, maxNodes: maxNodes, body: body, rule: (RULE_RENJU ? 4 : 0) });
             } catch (e) { clearTimeout(timer); reject(e); }
         });
     }
@@ -3312,7 +3484,7 @@ const RAPFI = (function () {
         return mtInit(kind).then(function (st) {
             st.move = null; st.logs = [];
             const e = st.eng;
-            e.sendCommand('INFO RULE 0');
+            e.sendCommand('INFO RULE ' + (RULE_RENJU ? 4 : 0));
             e.sendCommand('START ' + SIZE);
             e.sendCommand('INFO TIMEOUT_TURN ' + budget);
             e.sendCommand('INFO TIME_LEFT 600000');
@@ -4415,6 +4587,7 @@ function resetGame() {
     humanStyle = null;
     gameOver = false;
     winner = null;
+    winFoul = null;
     try { window.__winline && window.__winline.stop(); } catch (e) {}
     gameRecorded = false;
     undoThisGame = false;
@@ -4465,6 +4638,7 @@ function undoMove() {
     for (const m of playerMoves) addHeatAt(m.row, m.col, HEAT_GAIN);
     gameOver = false;
     winner = null;
+    winFoul = null;
     try { window.__winline && window.__winline.stop(); } catch (e) {}
     gameRecorded = false;
     try { SOUND.undo(); } catch (e) {}
@@ -4729,8 +4903,38 @@ try {
     }
 } catch (e) {}
 
+/* ⚖ 规则开关（黑方禁手 ⇄ 无禁手） */
+var syncRuleBtn2 = function () {
+    try {
+        var rb = document.getElementById('ruleBtn');
+        if (rb) rb.textContent = RULE_RENJU ? '⚖ 规则：黑方禁手' : '⚖ 规则：无禁手';
+    } catch (e) {}
+};
+function toggleRuleRenju() {
+    RULE_RENJU = !RULE_RENJU;
+    try { localStorage.setItem('startian_gomoku_rule_v1', RULE_RENJU ? '1' : '0'); } catch (e) {}
+    syncRuleBtn2();
+    try { drawBoard(); } catch (e) {}
+    try { if (window.NET && NET.online() && NET.publishRule) NET.publishRule(RULE_RENJU ? 1 : 0); } catch (e) {}
+    try { LOG.add('⚖ 规则切换：' + (RULE_RENJU ? '黑方禁手（连珠）' : '无禁手')); } catch (e) {}
+}
+try {
+    syncRuleBtn2();
+    var _rb = document.getElementById('ruleBtn');
+    if (_rb) _rb.addEventListener('click', toggleRuleRenju);
+} catch (e) {}
+
 resetGame();
-try { window.__gomokuTest = { declareDraw: declareDraw, findAnyEmptyCell: findAnyEmptyCell, isBoardFull: isBoardFull }; } catch (e) {}
+try { window.__gomokuTest = { declareDraw: declareDraw, findAnyEmptyCell: findAnyEmptyCell, isBoardFull: isBoardFull,
+    renju: {
+        info: function (r, c) { board[r][c] = BLACK; var _x = renjuForbiddenInfo(board, r, c, BLACK); board[r][c] = EMPTY; return _x; },
+        foulList: function () { return renjuFoulList().map(function (p) { return p[0] + ',' + p[1]; }); },
+        place: function (r, c) { return placeStone(r, c, currentPlayer); },
+        state: function () { return { rule: RULE_RENJU, foul: winFoul, over: gameOver, winner: winner, cur: currentPlayer, cells: foulCells.map(function (p) { return p[0] + ',' + p[1]; }) }; },
+        setRule: function (v) { if (!!v !== RULE_RENJU) toggleRuleRenju(); return RULE_RENJU; },
+        reset: function () { resetGame(); return true; },
+        board: function () { var rows = []; for (var r = 0; r < SIZE; r++) { var s = ''; for (var c = 0; c < SIZE; c++) s += (board[r][c] === EMPTY ? '.' : (board[r][c] === BLACK ? 'X' : 'O')); rows.push(s); } return rows.join('/'); }
+    } }; } catch (e) {}
 console.log('✅ 学习反制五子棋已启动（内嵌 Rapfi 引擎：困难=经典 / 灵拙=mix9 神经网络）');
 if (RAPFI.available) {
     LOG.block([
@@ -5467,6 +5671,14 @@ var NET = (function () {
           beginMatch();
         }
         break;
+      case 'rule':
+        oppSeenAt = Date.now();
+        RULE_RENJU = !!m.v;
+        try { localStorage.setItem('startian_gomoku_rule_v1', RULE_RENJU ? '1' : '0'); } catch (e) {}
+        try { syncRuleBtn2(); } catch (e) {}
+        try { drawBoard(); } catch (e) {}
+        toastMsg('对手把规则改为「' + (RULE_RENJU ? '黑方禁手' : '无禁手') + '」');
+        break;
       case 'full':
         if (!oppIn) { toastMsg('房间已满'); leaveRoom(true); }
         break;
@@ -5701,7 +5913,7 @@ var NET = (function () {
       board = b; moveHistory = hist;
       currentPlayer = (hist.length % 2 === 0) ? BLACK : WHITE;
       playerMoves = hist.filter(function (mv) { return mv.player === humanColor; }).map(function (mv) { return { row: mv.row, col: mv.col }; });
-      gameOver = false; winner = null;
+      gameOver = false; winner = null; winFoul = null;
       var last = hist[hist.length - 1];
       if (last && checkWinnerOnBoard(b, last.row, last.col, last.player)) {
         gameOver = true; winner = last.player;
@@ -5841,7 +6053,7 @@ var NET = (function () {
         currentPlayer = mv.player;
         n++;
       }
-      gameOver = false; winner = null;
+      gameOver = false; winner = null; winFoul = null;
       try { window.__winline && window.__winline.stop(); } catch (e) {}
       playerMoves = moveHistory.filter(function (m) { return m.player === humanColor; }).map(function (m) { return { row: m.row, col: m.col }; });
       drawBoard(); updateStatus(); renderSeats();
@@ -5869,6 +6081,7 @@ var NET = (function () {
     if (gameOver) {
       if (winner === null) el.innerText = T('🤝 平局') + tail;
       else if (winner === humanColor) el.innerText = T('🏆 你获胜！') + tail;
+      else if (winFoul) el.innerText = '⚖ ' + T('黑方') + (FOUL_TEXT[winFoul] || '禁手') + ' —— ' + T('判负') + tail;
       else el.innerText = T('😵 对手获胜') + tail;
     } else {
       el.innerText = (currentPlayer === humanColor ? '🟢 ' + T('轮到你') : '⏳ ' + T('等待对手…')) + ' (' + colorSym(currentPlayer) + ')' + tail;
@@ -5936,6 +6149,7 @@ var NET = (function () {
     updateStatus: updateStatus,
     openLobby: openLobby,
     leaveRoom: leaveRoom,
+    publishRule: function (v) { try { if (room) pub(RK + room, { t: 'rule', v: v ? 1 : 0 }, 1); } catch (e) {} },
     _t: { losOf: losOf, replayLos: replayLos },
     _dbg: function () { return { room: room, isHost: isHost, oppIn: oppIn, playing: playing, myColor: myColor, nick: nick, oppNick: oppNick, cid: cid, conn: anyConn(), broker: connNames().join('+'), seenS: seenSeqS, seenR: seenSeqR }; }
   };
