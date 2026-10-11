@@ -5099,12 +5099,21 @@ function setSide(side) {
             btn.disabled = false;
             note.textContent = '检测到跨源隔离已生效（' + (e.cores || '?') + ' 核可用）：点击启用多线程，灵拙多核搜索、更强更快。';
         } else if (e.sw) {
-            badge.textContent = '单线程（可升级）';
-            badge.style.background = '#8fb9e0';
-            btn.textContent = '⚡ 启用多线程加速';
-            btn.dataset.action = 'enable';
-            btn.disabled = false;
-            note.textContent = '检测到可启用多线程加速：将注册一次后台服务并刷新页面（之后灵拙多核搜索）。不启用也可正常使用单线程。';
+            if (st.optin) {
+                badge.textContent = '单线程（启用中…）';
+                badge.style.background = '#d8b26a';
+                btn.textContent = '🔄 点我完成启用（刷新）';
+                btn.dataset.action = 'reload';
+                btn.disabled = false;
+                note.textContent = '多线程启用流程尚未生效：点上方按钮刷新一次即可完成（若反复出现，请检查浏览器是否禁用了站点后台服务）。';
+            } else {
+                badge.textContent = '单线程（可升级）';
+                badge.style.background = '#8fb9e0';
+                btn.textContent = '⚡ 启用多线程加速';
+                btn.dataset.action = 'enable';
+                btn.disabled = false;
+                note.textContent = '检测到可启用多线程加速：将注册一次后台服务并刷新页面（之后灵拙多核搜索）。不启用也可正常使用单线程。';
+            }
         } else {
             badge.textContent = '单线程';
             badge.style.background = '#b9c6d8';
@@ -5121,14 +5130,35 @@ function setSide(side) {
         if (act === 'enable') {
             btn.disabled = true;
             note.textContent = '正在注册后台服务…';
-            navigator.serviceWorker.register('sw.js').then(function () {
-                setOptin(true);
-                note.textContent = '注册成功，正在刷新页面以启用多线程…';
-                setTimeout(function () { location.reload(); }, 700);
+            navigator.serviceWorker.register('sw.js').then(function (reg) {
+                note.textContent = '后台服务注册成功，等待激活…';
+                var doneOnce = false;
+                function go() {
+                    if (doneOnce) return; doneOnce = true;
+                    setOptin(true);
+                    note.textContent = '已激活，正在刷新页面以启用多线程…';
+                    setTimeout(function () { location.reload(); }, 400);
+                }
+                function watch(sw) {
+                    if (!sw) return;
+                    if (sw.state === 'activated') { go(); return; }
+                    sw.addEventListener('statechange', function () { if (sw.state === 'activated') go(); });
+                }
+                if (reg.active) { go(); return; }
+                watch(reg.installing); watch(reg.waiting);
+                var t0 = Date.now();
+                var timer = setInterval(function () {
+                    if (reg.active || (navigator.serviceWorker && navigator.serviceWorker.controller)) { clearInterval(timer); go(); }
+                    else if (Date.now() - t0 > 15000) { clearInterval(timer); go(); }   /* 超时也试一次；页面自愈逻辑会兜底 */
+                }, 400);
             }).catch(function (err) {
                 btn.disabled = false;
                 note.textContent = '注册失败：' + ((err && err.message) || err) + '（不影响单线程使用，可稍后重试）';
             });
+        } else if (act === 'reload') {
+            setOptin(true);
+            note.textContent = '正在刷新…';
+            setTimeout(function () { location.reload(); }, 400);
         } else if (act === 'on') {
             setOptin(true);
             note.textContent = '已开启，正在刷新…';
@@ -5150,6 +5180,22 @@ function setSide(side) {
     render();
     /* 定期轻量刷新状态（切换/重载等场景） */
     setInterval(function () { try { render(); } catch (e) {} }, 4000);
+
+    /* 自愈：已启用多线程、SW 已接管本页，但本次文档未隔离（首次注册的时序差）→ 自动补刷一次 */
+    try {
+        var coi2 = (typeof crossOriginIsolated !== 'undefined') && !!crossOriginIsolated;
+        if (optin() && !coi2) {
+            var hadCtrl = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+            var tried = false;
+            try { tried = sessionStorage.getItem('startian_mt_reload') === '1'; } catch (x) {}
+            if (hadCtrl && !tried) {
+                try { sessionStorage.setItem('startian_mt_reload', '1'); } catch (x) {}
+                setTimeout(function () { location.reload(); }, 500);
+            }
+        } else {
+            try { sessionStorage.removeItem('startian_mt_reload'); } catch (x) {}
+        }
+    } catch (x) {}
 })();
 
 // ---------- 🔮 AI 推理棋局（摆阵推演 · v35） ----------
