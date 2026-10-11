@@ -859,6 +859,16 @@ I18N.auto();
                 <button class="difficulty-btn" data-strength="3">极限</button>
             </div>
         </div>
+        <div class="control-group" id="mtGroup">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700;">灵拙引擎环境</span>
+                <span class="learning-badge" id="mtBadge" style="background:#8fb9e0;">检测中…</span>
+            </div>
+            <div class="difficulty-row">
+                <button class="difficulty-btn" id="mtBtn" style="flex:1;" type="button">⚡ 启用多线程加速</button>
+            </div>
+            <div id="mtNote" style="font-size:12px;font-weight:700;color:#6f93b4;margin-top:6px;line-height:1.6;"></div>
+        </div>
         <div class="control-group" id="studyGroup">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <span style="font-weight:700;">AI 推理棋局</span>
@@ -3215,6 +3225,14 @@ const RAPFI = (function () {
     const canFetch = (typeof fetch === 'function') && typeof location !== 'undefined' && location.protocol !== 'file:';
     const available = !!(inline && inline.cls && inline.nnue) || canFetch;
     const ASSET_DIR = 'assets/';
+    /* —— v37：新一代引擎（Rapfi 0.43.02）——SIMD 能力检测（不支持则走经典通道）—— */
+    const V2_ENABLED = (function () {
+        try {
+            if (typeof WebAssembly === 'undefined' || !WebAssembly.validate) return false;
+            var simd = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11]);
+            return WebAssembly.validate(simd);
+        } catch (e) { return false; }
+    })();
     const loaded = {};   // kind -> Promise<{jsText, wasmBuf?, dataBuf?, b64w?, b64d?}>
     const boots = {};   // kind -> { worker, ready, logs, onMove, onFail, _resolve, _reject }
     const mt = {};      // kind -> main-thread engine state
@@ -3427,6 +3445,140 @@ const RAPFI = (function () {
         return p;
     }
 
+    /* ==================== v37：新一代引擎资源（Rapfi 0.43.02 + NNUE 加速） ==================== */
+    function v2Key(variant, ext) { try { return location.origin + '/assets/v2-' + variant + ext; } catch (e) { return 'v2:' + variant + ext; } }
+    function cacheGetV2(key) {
+        if (!cacheAvail()) return Promise.resolve(null);
+        return caches.open(CACHE_NAME).then(function (c) { return c.match(key); }).then(function (r) {
+            return r ? r.arrayBuffer() : null;
+        }).catch(function () { return null; });
+    }
+    function cacheStoreV2(variant, assets) {
+        if (!cacheAvail()) return;
+        let wb = null, db = null;
+        try { wb = assets.wasmBuf ? assets.wasmBuf.slice(0) : null; db = assets.dataBuf ? assets.dataBuf.slice(0) : null; } catch (e) { wb = null; db = null; }
+        if (!wb || wb.byteLength < 1000 || !db || db.byteLength < 1000000) return;
+        try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {}); } catch (e) {}
+        caches.open(CACHE_NAME).then(function (c) {
+            const hb = { 'Content-Type': 'application/octet-stream' };
+            return Promise.all([
+                c.put(v2Key(variant, '.wasm'), new Response(wb, { headers: hb })),
+                c.put(v2Key('shared', '.data'), new Response(db, { headers: hb }))
+            ]);
+        }).catch(function () {});
+    }
+    function ensureAssetsV2(variant) {
+        const key = 'v2-' + variant;
+        if (loaded[key]) return loaded[key];
+        const p = Promise.all([
+            cacheGetV2(v2Key(variant, '.wasm')).then(function (b) { return (b && checkWasm(b)) ? b : null; }),
+            cacheGetV2(v2Key('shared', '.data')).then(function (b) { return (b && b.byteLength > 1000000) ? b : null; })
+        ]).then(function (cached) {
+            const w0 = cached[0], d0 = cached[1];
+            const needW = !w0, needD = !d0;
+            if (!needW && !needD) {
+                try { LOG.add('⚡ 灵拙新一代引擎：本地缓存命中，秒加载' + (variant.indexOf('multi') === 0 ? '（多线程版）' : '')); } catch (e) {}
+                return [w0, d0];
+            }
+            try { LOG.add('📦 正在加载灵拙新一代引擎资源' + (needW && needD ? '（首次约 30MB）' : '（增量）') + '…'); } catch (e) {}
+            const mkProg = function (label) {
+                let lastMB = -1;
+                return function (got) {
+                    const mb = got / 1048576;
+                    if (mb + 0.01 < lastMB) lastMB = -1;
+                    if (mb - lastMB < 3) return;
+                    lastMB = mb;
+                    try { LOG.add('  · ' + label + '下载中…已接收 ' + mb.toFixed(1) + ' MB'); } catch (e) {}
+                };
+            };
+            return Promise.all([
+                w0 ? Promise.resolve(w0) : fetchAssetFile('rapfi-' + variant + '.wasm', false, mkProg('引擎核心'), '引擎核心'),
+                d0 ? Promise.resolve(d0) : fetchAssetFile('rapfi-upgraded.data', false, mkProg('双权重数据'), '数据包')
+            ]);
+        }).then(function (arr) {
+            const assets = { wasmBuf: arr[0], dataBuf: arr[1] };
+            if (!checkWasm(assets.wasmBuf)) throw new Error('wasm 完整性校验失败');
+            try { LOG.add('  · 新一代引擎资源已就绪 ✓（Rapfi 0.43.02 · NNUE 加速）'); } catch (e) {}
+            cacheStoreV2(variant, assets);
+            return assets;
+        }).catch(function (err) {
+            try { LOG.add('  · ⚠ 新一代引擎资源加载失败：' + ((err && err.message) || err)); } catch (e) {}
+            throw err;
+        });
+        loaded[key] = p;
+        p.catch(function () { delete loaded[key]; });
+        return p;
+    }
+    /* 多线程资格：跨源隔离（COOP/COEP）已生效 + 用户已启用 */
+    function mtState() {
+        var coi = false, optin = false;
+        try { coi = (typeof crossOriginIsolated !== 'undefined') && !!crossOriginIsolated; } catch (e) {}
+        try { optin = localStorage.getItem('startian_mt_v1') === '1'; } catch (e) {}
+        return { coi: coi, optin: optin, multi: coi && optin };
+    }
+    function initV2(b) {
+        const mt = mtState();
+        const variants = mt.multi ? ['multi-simd128', 'single-simd128'] : ['single-simd128'];
+        function attempt(i) {
+            if (i >= variants.length) return Promise.reject(new Error('所有引擎变体启动失败'));
+            const variant = variants[i];
+            return ensureAssetsV2(variant).then(function (a) {
+                return new Promise(function (resolve, reject) {
+                    let w;
+                    try { w = new Worker(ASSET_DIR + 'engine-worker.js?variant=' + variant); }
+                    catch (e) { reject(e); return; }
+                    let settled = false;
+                    const timer = setTimeout(function () {
+                        if (settled) return; settled = true;
+                        try { w.terminate(); } catch (e) {}
+                        reject(new Error('启动超时（' + variant + '）'));
+                    }, variant.indexOf('multi') === 0 ? 30000 : 20000);
+                    attachWorker(b, w,
+                        function onReady() { if (settled) return; settled = true; clearTimeout(timer); try { LOG.add(variant.indexOf('multi') === 0 ? '  · 多线程引擎已启动（' + (navigator.hardwareConcurrency || '?') + ' 核并行）' : '  · 单线程引擎已启动（新架构）'); } catch (e) {} resolve(w); },
+                        function onFailInit(err) { if (settled) return; settled = true; clearTimeout(timer); try { w.terminate(); } catch (e) {} reject(err); }
+                    );
+                    try { w.postMessage({ __init: true, wasmBuf: a.wasmBuf, dataBuf: a.dataBuf }, [a.wasmBuf, a.dataBuf]); }
+                    catch (e) { if (!settled) { settled = true; clearTimeout(timer); reject(e); } }
+                });
+            }).catch(function (err) {
+                if (i + 1 < variants.length) {
+                    try { LOG.add('  · 多线程引擎启动失败（' + ((err && err.message) || err) + '）→ 改用单线程引擎'); } catch (e) {}
+                    if (b.worker) { try { b.worker.terminate(); } catch (e) {} b.worker = null; }
+                    return attempt(i + 1);
+                }
+                throw err;
+            });
+        }
+        return attempt(0);
+    }
+    /* worker 消息桥（旧/新路径共用） */
+    function attachWorker(b, w, onReady, onFailInit) {
+        w.onmessage = function (ev) {
+            const m = ev.data || {};
+            if (m.__ready) { if (onReady) { const f = onReady; onReady = null; f(w); } return; }
+            if (m.__fail) {
+                b.failed = true;
+                if (onFailInit) { const f = onFailInit; onFailInit = null; f(new Error(m.__fail)); }
+                if (b.onFail) { const f2 = b.onFail; b.onFail = null; f2(new Error(m.__fail)); }
+                return;
+            }
+            if (m.__move) {
+                if (m.__gen !== undefined && m.__gen !== b.gen) return;
+                if (b.onMove) { const f = b.onMove; b.onMove = null; f(m.__move); }
+                return;
+            }
+            if (m.__log) { b.logs.push(m.__log); if (b.logs.length > 200) b.logs.shift(); return; }
+            if (m.__err) { try { console.warn('[rapfi stderr]', m.__err); } catch (e) {} b.logs.push('[stderr] ' + m.__err); if (b.logs.length > 200) b.logs.shift(); return; }
+            if (m.__cand) { (b.cands = b.cands || []).push(String(m.__cand).replace(/^MESSAGE\s*/, '')); return; }
+            if (m.__probe) { return; }
+        };
+        w.onerror = function (err) {
+            b.failed = true;
+            if (onFailInit) { const f = onFailInit; onFailInit = null; f(err); }
+            if (b.onFail) { const f2 = b.onFail; b.onFail = null; f2(err); }
+        };
+    }
+
     const WORKER_BOOT = [
         "self.__eng=null;self.__data=null;self.__log=[];self.__bm=null;",
         "function __line(line){",
@@ -3491,48 +3643,50 @@ const RAPFI = (function () {
         "};"
     ].join('\n');
 
+    /* 经典通道（旧版资源 + Blob worker）——保留作为最终兜底 */
+    function initLegacy(kind, b) {
+        return ensureAssets(kind).then(function (a) {
+            return new Promise(function (resolve, reject) {
+                if (typeof Worker === 'undefined' || typeof URL === 'undefined' || !URL.createObjectURL || typeof Blob === 'undefined') {
+                    b.failed = true; reject(new Error('worker unsupported')); return;
+                }
+                let w;
+                try {
+                    const src = 'var module={exports:{}};var exports=module.exports;\n' + a.jsText + '\n' + WORKER_BOOT;
+                    w = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+                } catch (e) { b.failed = true; reject(e); return; }
+                attachWorker(b, w,
+                    function onReady() { b.worker = w; resolve(w); },
+                    function onFailInit(err) { try { w.terminate(); } catch (e) {} reject(err); }
+                );
+                try {
+                    if (a.wasmBuf) w.postMessage({ __init: true, wasmBuf: a.wasmBuf, dataBuf: a.dataBuf }, [a.wasmBuf, a.dataBuf]);
+                    else w.postMessage({ __init: true, b64w: a.b64w, b64d: a.b64d });
+                } catch (e) { b.failed = true; reject(e); }
+            });
+        });
+    }
+
     function init(kind) {
         const cached = boots[kind];
         if (cached) return cached.ready;
         const b = { worker: null, logs: [], onMove: null, onFail: null, _resolve: null, _reject: null, failed: false };
         boots[kind] = b;
-        b.ready = ensureAssets(kind).then(function (a) {
-        return new Promise(function (resolve, reject) {
+        let chain;
+        if (kind === 'nnue' && V2_ENABLED) {
+            try { LOG.add('  · 灵拙：新一代引擎（Rapfi 0.43.02 · NNUE 加速 · 双权重）'); } catch (e) {}
+            chain = initV2(b).then(function (w) { b.worker = w; return w; }).catch(function (err) {
+                try { LOG.add('  · ⚠ 新一代引擎不可用（' + ((err && err.message) || err) + '），回退经典通道…'); } catch (e) {}
+                if (b.worker) { try { b.worker.terminate(); } catch (e) {} b.worker = null; }
+                return initLegacy(kind, b);
+            });
+        } else {
+            chain = initLegacy(kind, b);
+        }
+        b.ready = new Promise(function (resolve, reject) {
             b._resolve = resolve; b._reject = reject;
-            if (typeof Worker === 'undefined' || typeof URL === 'undefined' || !URL.createObjectURL || typeof Blob === 'undefined') {
-                b.failed = true; reject(new Error('worker unsupported')); return;
-            }
-            let w;
-            try {
-                const src = 'var module={exports:{}};var exports=module.exports;\n' + a.jsText + '\n' + WORKER_BOOT;
-                w = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
-            } catch (e) { b.failed = true; reject(e); return; }
-            b.worker = w;
-            w.onmessage = function (ev) {
-                const m = ev.data || {};
-                if (m.__ready) { resolve(w); return; }
-                if (m.__fail) { b.failed = true; if (b.onFail) { const f = b.onFail; b.onFail = null; f(new Error(m.__fail)); } reject(new Error(m.__fail)); return; }
-                if (m.__move) {
-                    if (m.__gen !== undefined && m.__gen !== b.gen) return;   // 中断后迟到的着法，丢弃
-                    if (b.onMove) { const f = b.onMove; b.onMove = null; f(m.__move); }
-                    return;
-                }
-                if (m.__log) { b.logs.push(m.__log); if (b.logs.length > 200) b.logs.shift(); return; }
-                if (m.__err) { try { console.warn('[rapfi stderr]', m.__err); } catch (e) {} b.logs.push('[stderr] ' + m.__err); if (b.logs.length > 200) b.logs.shift(); return; }
-                if (m.__cand) { (b.cands = b.cands || []).push(String(m.__cand).replace(/^MESSAGE\s*/, '')); return; }
-                if (m.__probe) { return; }
-            };
-            w.onerror = function (err) {
-                b.failed = true;
-                if (b.onFail) { const f = b.onFail; b.onFail = null; f(err); }
-                reject(err);
-            };
-            try {
-                if (a.wasmBuf) w.postMessage({ __init: true, wasmBuf: a.wasmBuf, dataBuf: a.dataBuf }, [a.wasmBuf, a.dataBuf]);
-                else w.postMessage({ __init: true, b64w: a.b64w, b64d: a.b64d });
-            } catch (e) { b.failed = true; reject(e); }
+            chain.then(function (w) { resolve(w); }, function (err) { b.failed = true; reject(err); });
         });
-        }, function (err) { b.failed = true; throw err; });
         b.ready.catch(function () { b.failed = true; });
         return b.ready;
     }
@@ -4903,6 +5057,101 @@ function setSide(side) {
         : '♟ AI 执黑先手 —— 自动开局，稍候轮到你');
 }
 
+/* ==================== v37：引擎环境自检 + 多线程启用 ==================== */
+(function () {
+    'use strict';
+    var badge = document.getElementById('mtBadge');
+    var btn = document.getElementById('mtBtn');
+    var note = document.getElementById('mtNote');
+    if (!badge || !btn) return;
+
+    function env() {
+        var e = { coi: false, sab: false, sw: false, cores: 0, mem: 0 };
+        try { e.coi = typeof crossOriginIsolated !== 'undefined' && !!crossOriginIsolated; } catch (x) {}
+        try { e.sab = typeof SharedArrayBuffer !== 'undefined'; } catch (x) {}
+        try { e.sw = ('serviceWorker' in navigator) && (location.protocol === 'https:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname)); } catch (x) {}
+        e.cores = (navigator.hardwareConcurrency || 0);
+        e.mem = (navigator.deviceMemory || 0);
+        return e;
+    }
+    function optin() { try { return localStorage.getItem('startian_mt_v1') === '1'; } catch (x) { return false; } }
+    function setOptin(v) { try { localStorage.setItem('startian_mt_v1', v ? '1' : '0'); } catch (x) {} }
+
+    var _lastSig = '';
+    function render() {
+        var e = env();
+        var st = { coi: e.coi, optin: optin(), pageHadSW: false };
+        try { st.pageHadSW = !!(navigator.serviceWorker && navigator.serviceWorker.controller); } catch (x) {}
+        var sig = JSON.stringify(st);
+        badge.title = '合作者：' + (e.cores || '?') + ' 核 · 内存档 ' + (e.mem || '?') + ' · SAB ' + (e.sab ? '✓' : '✗') + ' · 隔离 ' + (e.coi ? '✓' : '✗');
+        if (e.coi && st.optin) {
+            badge.textContent = '多线程 ✓' + (e.cores ? ' ' + e.cores + ' 核' : '');
+            badge.style.background = '#5cb885';
+            btn.textContent = '🔧 关闭多线程（回到单线程）';
+            btn.dataset.action = 'off';
+            btn.disabled = false;
+            note.textContent = '灵拙已启用多线程引擎（跨源隔离生效 · ' + (e.cores || '?') + ' 核可用）。新对局时将用多核搜索。';
+        } else if (e.coi) {
+            badge.textContent = '单线程（隔离就绪）';
+            badge.style.background = '#8fb9e0';
+            btn.textContent = '⚡ 启用多线程加速';
+            btn.dataset.action = 'on';
+            btn.disabled = false;
+            note.textContent = '检测到跨源隔离已生效（' + (e.cores || '?') + ' 核可用）：点击启用多线程，灵拙多核搜索、更强更快。';
+        } else if (e.sw) {
+            badge.textContent = '单线程（可升级）';
+            badge.style.background = '#8fb9e0';
+            btn.textContent = '⚡ 启用多线程加速';
+            btn.dataset.action = 'enable';
+            btn.disabled = false;
+            note.textContent = '检测到可启用多线程加速：将注册一次后台服务并刷新页面（之后灵拙多核搜索）。不启用也可正常使用单线程。';
+        } else {
+            badge.textContent = '单线程';
+            badge.style.background = '#b9c6d8';
+            btn.textContent = '当前环境不支持多线程';
+            btn.dataset.action = '';
+            btn.disabled = true;
+            note.textContent = '当前环境不支持多线程加速（需要 HTTPS + Service Worker）。灵拙以单线程模式运行，功能完整。';
+        }
+        _lastSig = sig;
+    }
+
+    btn.addEventListener('click', function () {
+        var act = btn.dataset.action;
+        if (act === 'enable') {
+            btn.disabled = true;
+            note.textContent = '正在注册后台服务…';
+            navigator.serviceWorker.register('sw.js').then(function () {
+                setOptin(true);
+                note.textContent = '注册成功，正在刷新页面以启用多线程…';
+                setTimeout(function () { location.reload(); }, 700);
+            }).catch(function (err) {
+                btn.disabled = false;
+                note.textContent = '注册失败：' + ((err && err.message) || err) + '（不影响单线程使用，可稍后重试）';
+            });
+        } else if (act === 'on') {
+            setOptin(true);
+            note.textContent = '已开启，正在刷新…';
+            setTimeout(function () { location.reload(); }, 500);
+        } else if (act === 'off') {
+            setOptin(false);
+            try {
+                if (navigator.serviceWorker) {
+                    navigator.serviceWorker.getRegistrations().then(function (rs) {
+                        rs.forEach(function (r) { try { r.unregister(); } catch (e) {} });
+                    });
+                }
+            } catch (e) {}
+            note.textContent = '已关闭多线程，正在刷新…';
+            setTimeout(function () { location.reload(); }, 600);
+        }
+    });
+
+    render();
+    /* 定期轻量刷新状态（切换/重载等场景） */
+    setInterval(function () { try { render(); } catch (e) {} }, 4000);
+})();
+
 // ---------- 🔮 AI 推理棋局（摆阵推演 · v35） ----------
 function studyBoardClick(e, isTouch) {
     try {
@@ -5384,9 +5633,8 @@ if (RAPFI.available) {
     setTimeout(function () {
         try {
             var first = RAPFI.init(rapfiKindFor(difficulty) || 'cls');
-            first.catch(function () {}).then(function () {
-                setTimeout(function () { try { RAPFI.init('nnue').catch(function () {}); } catch (e) {} }, 800);
-            });
+            /* v37：不再后台预拉灵拙（30MB）——切到灵拙档时按需加载（有进度提示） */
+            first.catch(function () {});
         } catch (e) {}
     }, 1200);
 } else {
