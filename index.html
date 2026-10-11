@@ -5674,13 +5674,18 @@ if (RAPFI.available) {
         '  · 🔮 摆阵推理：在「AI 推理棋局」摆好局面，让经典引擎推演最优落点'
     ]);
     setStrength(strengthLevel);
-    LOG.add('  · 引擎资源按需加载：首屏更快；困难 / 灵拙首次使用会先下载一次（成功后写入浏览器持久缓存，之后无需网络）');
-    /* 后台预热引擎（不阻塞界面）：先当前档位、再灵拙神经网络 */
+    LOG.add('  · 引擎资源后台预载：打开页面后自动下载（一次缓存永久秒开，切档即用；省流量模式下自动推迟）');
+    /* 后台预热引擎（不阻塞界面）：先当前档位，再灵拙（新一代 30MB，打开网站即自动预载） */
     setTimeout(function () {
         try {
             var first = RAPFI.init(rapfiKindFor(difficulty) || 'cls');
-            /* v37：不再后台预拉灵拙（30MB）——切到灵拙档时按需加载（有进度提示） */
-            first.catch(function () {});
+            first.catch(function () {}).then(function () {
+                /* v38：恢复灵拙后台预拉（一次缓存永久秒开；省流量模式跳过） */
+                var saveData = false;
+                try { saveData = !!(navigator.connection && navigator.connection.saveData); } catch (e) {}
+                if (saveData) return;
+                setTimeout(function () { try { RAPFI.init('nnue').catch(function () {}); } catch (e) {} }, 800);
+            });
         } catch (e) {}
     }, 1200);
 } else {
