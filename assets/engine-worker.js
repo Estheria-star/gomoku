@@ -96,7 +96,19 @@ self.onmessage = function (ev) {
                 onExit: function (c) { self.postMessage({ __err: '[wasm exit ' + c + ']' }); }
             }).then(function (eng) {
                 self.__eng = eng;
-                self.postMessage({ __ready: true });
+                /* v39：引擎关键参数（须在权重加载/首次搜索前设置；线程数变更会重建线程并丢弃评估器） */
+                var nThreads = 1;
+                try {
+                    var multi = VARIANT.indexOf('multi') === 0;
+                    var cores = 0;
+                    try { cores = navigator.hardwareConcurrency || 0; } catch (e) {}
+                    nThreads = multi ? Math.max(1, Math.min(cores || 4, 8)) : 1;
+                    eng.sendCommand('INFO thread_num ' + nThreads);
+                    eng.sendCommand('INFO hash_size ' + (multi ? 131072 : 65536));
+                    eng.sendCommand('INFO caution_factor 3');
+                    eng.sendCommand('INFO vcthread 0');
+                } catch (e) {}
+                self.postMessage({ __ready: true, __nthreads: nThreads });
             }).catch(function (err) {
                 self.postMessage({ __fail: String((err && err.message) || err) });
             });

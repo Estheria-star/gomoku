@@ -3525,7 +3525,7 @@ const RAPFI = (function () {
             return ensureAssetsV2(variant).then(function (a) {
                 return new Promise(function (resolve, reject) {
                     let w;
-                    try { w = new Worker(ASSET_DIR + 'engine-worker.js?variant=' + variant); }
+                    try { w = new Worker(ASSET_DIR + 'engine-worker.js?variant=' + variant + '&r=39'); }
                     catch (e) { reject(e); return; }
                     let settled = false;
                     const timer = setTimeout(function () {
@@ -3534,7 +3534,7 @@ const RAPFI = (function () {
                         reject(new Error('启动超时（' + variant + '）'));
                     }, variant.indexOf('multi') === 0 ? 30000 : 20000);
                     attachWorker(b, w,
-                        function onReady() { if (settled) return; settled = true; clearTimeout(timer); try { LOG.add(variant.indexOf('multi') === 0 ? '  · 多线程引擎已启动（' + (navigator.hardwareConcurrency || '?') + ' 核并行）' : '  · 单线程引擎已启动（新架构）'); } catch (e) {} resolve(w); },
+                        function onReady(w2, m) { if (settled) return; settled = true; clearTimeout(timer); try { LOG.add(variant.indexOf('multi') === 0 ? '  · 多线程引擎已启动（' + ((m && m.__nthreads) || '?') + ' 线程并行 · 128MB 哈希表）' : '  · 单线程引擎已启动（64MB 哈希表）'); } catch (e) {} resolve(w); },
                         function onFailInit(err) { if (settled) return; settled = true; clearTimeout(timer); try { w.terminate(); } catch (e) {} reject(err); }
                     );
                     try { w.postMessage({ __init: true, wasmBuf: a.wasmBuf, dataBuf: a.dataBuf }, [a.wasmBuf, a.dataBuf]); }
@@ -3555,7 +3555,7 @@ const RAPFI = (function () {
     function attachWorker(b, w, onReady, onFailInit) {
         w.onmessage = function (ev) {
             const m = ev.data || {};
-            if (m.__ready) { if (onReady) { const f = onReady; onReady = null; f(w); } return; }
+            if (m.__ready) { if (onReady) { const f = onReady; onReady = null; f(w, m); } return; }
             if (m.__fail) {
                 b.failed = true;
                 if (onFailInit) { const f = onFailInit; onFailInit = null; f(new Error(m.__fail)); }
