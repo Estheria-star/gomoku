@@ -844,6 +844,8 @@ I18N.auto();
                 <button class="difficulty-btn active" data-level="1">中等</button>
                 <button class="difficulty-btn" data-level="2">困难</button>
                 <button class="difficulty-btn" data-level="3">灵拙</button>
+                <button class="difficulty-btn" data-level="5" title="墨渊 · 连珠专精引擎（仅 15×15）">墨渊</button>
+                <button class="difficulty-btn" data-level="6" title="冰痕 · 快速计算引擎（仅 15×15）">冰痕</button>
                 <button class="difficulty-btn" data-level="4">快速开始</button>
             </div>
         </div>
@@ -1024,7 +1026,7 @@ let SIZE = 19;                       /* v40：支持 15/19 切换 */
 let CENTER = (SIZE - 1) / 2;         // 天元坐标（动态）
 const EMPTY = 0, BLACK = 1, WHITE = 2;
 const MARGIN = 30;
-const DIFF_NAME = ['简单', '中等', '困难', '灵拙', '快速开始'];
+const DIFF_NAME = ['简单', '中等', '困难', '灵拙', '快速开始', '墨渊', '冰痕'];
 
 // ---------- 记忆（跨对局，localStorage）——按难度分桶，互不污染 ----------
 const MEM_KEY = 'gomoku-ai-v3';
@@ -4084,6 +4086,184 @@ function rapfiBudgetFor(kind, stoneCnt) {
     return stoneCnt < 8 ? 2000 : (stoneCnt < 16 ? 3000 : 4000);
 }
 
+/* ============================================================
+ * v46 新对手引擎：墨渊（xl-engine · WebAssembly） / 冰痕（内置 minimax JS）
+ * 开源致谢：XL Engine © Chengtao Chen, Kai Sun, Tianyi Hao（GPL-2.0）
+ *           gomoku-ai © kevin2014123（GPL-3.0）
+ * ============================================================ */
+window.NEWENG = (function () {
+    'use strict';
+    const REG = {
+        5: { name: '墨渊', budget: function (n) { return n < 6 ? 2500 : (n < 24 ? 4000 : 6000); } },
+        6: { name: '冰痕', budget: function () { return 2600; } }
+    };
+    function regOf(level) { return REG[level] || null; }
+
+    /* ---------- 冰痕：Worker 宿主（think 为同步阻塞，放 worker 不卡 UI） ---------- */
+    const BH = {
+        worker: null, ready: false, booting: null, seq: 0, waiters: {},
+        ensure: function () {
+            if (this.ready) return Promise.resolve(true);
+            if (this.booting) return this.booting;
+            const me = this;
+            this.booting = new Promise(function (resolve) {
+                let w;
+                try { w = new Worker('assets/bh-worker.js?v=46'); } catch (e) { resolve(false); return; }
+                me.worker = w;
+                w.onmessage = function (ev) {
+                    const m = ev.data || {};
+                    if (m.type === 'ready') { me.ready = true; resolve(true); return; }
+                    if (m.type === 'fatal') { resolve(false); return; }
+                    if (m.reqId != null && me.waiters[m.reqId]) {
+                        const cb = me.waiters[m.reqId];
+                        delete me.waiters[m.reqId];
+                        cb(m);
+                    }
+                };
+                w.onerror = function () { resolve(false); };
+                w.postMessage({ type: 'boot' });
+            });
+            return this.booting;
+        },
+        call: function (msg, timeoutMs) {
+            const me = this;
+            return new Promise(function (resolve) {
+                const id = ++me.seq;
+                msg.reqId = id;
+                let fin = false;
+                const done = function (v) { if (!fin) { fin = true; resolve(v); } };
+                me.waiters[id] = done;
+                setTimeout(function () { if (me.waiters[id]) { delete me.waiters[id]; done(null); } }, timeoutMs || 60000);
+                try { me.worker.postMessage(msg); } catch (e) { done(null); }
+            });
+        }
+    };
+
+    /* ---------- 墨渊：Worker 宿主 ---------- */
+    const XL = {
+        worker: null, ready: false, booting: null, seq: 0, waiters: {},
+        ensure: function () {
+            if (this.ready) return Promise.resolve(true);
+            if (this.booting) return this.booting;
+            const me = this;
+            this.booting = new Promise(function (resolve) {
+                let w;
+                try { w = new Worker('assets/xl-worker.js?v=46'); } catch (e) { resolve(false); return; }
+                me.worker = w;
+                w.onmessage = function (ev) {
+                    const m = ev.data || {};
+                    if (m.type === 'ready') { me.ready = true; resolve(true); return; }
+                    if (m.type === 'fatal') { resolve(false); return; }
+                    if (m.reqId != null && me.waiters[m.reqId]) {
+                        const cb = me.waiters[m.reqId];
+                        delete me.waiters[m.reqId];
+                        cb(m);
+                    }
+                };
+                w.onerror = function () { resolve(false); };
+                w.postMessage({ type: 'boot' });
+            });
+            return this.booting;
+        },
+        call: function (msg, timeoutMs) {
+            const me = this;
+            return new Promise(function (resolve) {
+                const id = ++me.seq;
+                msg.reqId = id;
+                let fin = false;
+                const done = function (v) { if (!fin) { fin = true; resolve(v); } };
+                me.waiters[id] = done;
+                setTimeout(function () { if (me.waiters[id]) { delete me.waiters[id]; done(null); } }, timeoutMs || 60000);
+                try { me.worker.postMessage(msg); } catch (e) { done(null); }
+            });
+        }
+    };
+
+    /* ---------- 思考入口 ---------- */
+    function thinkXl(level) {
+        if (SIZE !== 15) throw new Error('仅支持 15×15');
+        const n = moveHistory.length;
+        return XL.ensure().then(function (ok) {
+            if (!ok) throw new Error('引擎资源加载失败');
+            /* 坐标转换：网站 (row, col) → xl (x=col, y=row) */
+            const moves = moveHistory.map(function (m) { return [m.col, m.row]; });
+            return XL.call({ type: 'rebuild', moves: moves }, 20000);
+        }).then(function (r) {
+            if (!r || r.type !== 'reset-ok') throw new Error('局面同步失败');
+            return XL.call({ type: 'think', timeout: regOf(level).budget(n) }, 90000);
+        }).then(function (r) {
+            if (!r || r.type !== 'move') throw new Error('思考失败');
+            if (r.x < 0 || r.y < 0) return null;
+            /* xl (x=col, y=row) → 网站 (row, col) */
+            return { row: r.y, col: r.x };
+        });
+    }
+
+    function thinkBinghen(level) {
+        if (SIZE !== 15) return Promise.reject(new Error('仅支持 15×15'));
+        return BH.ensure().then(function (ok) {
+            if (!ok) throw new Error('引擎资源加载失败');
+            const snapshot = board.map(function (row) { return row.slice(); });
+            return BH.call({ type: 'think', board: snapshot, myColor: aiColor, timeLimit: regOf(level).budget(moveHistory.length) }, 30000);
+        }).then(function (r) {
+            if (!r || r.type !== 'move') throw new Error('思考失败');
+            if (r.x < 0 || r.y < 0) return null;
+            return { row: r.y, col: r.x };
+        });
+    }
+
+    /* ---------- 难度强制切换（守卫用） ---------- */
+    function forceDifficulty(lv, why) {
+        try {
+            difficulty = lv;
+            localStorage.setItem('startian_diff_v1', String(lv));
+            document.querySelectorAll('.difficulty-btn[data-level]').forEach(function (b) {
+                b.classList.toggle('active', parseInt(b.dataset.level) === lv);
+            });
+            if (why) LOG.add(why);
+        } catch (e) {}
+    }
+
+    /* ---------- 回合调度（对齐 aiTurnEngine：token 防串扰 + 兜底） ---------- */
+    function tryTurn(level) {
+        const reg = regOf(level);
+        if (!reg) return false;
+        if (gameOver || currentPlayer !== aiColor) return true;
+        aiBusy = true;
+        const token = ++aiToken;
+        const t0 = Date.now();
+        const needLoad = (level === 5) ? !XL.ready : !BH.ready;
+        if (needLoad) LOG.add('📦 正在加载「' + reg.name + '」引擎资源…（首次需下载一次，之后缓存）');
+        LOG.add('⏳ ' + reg.name + ' 思考中…');
+        const p = (level === 5) ? thinkXl(level) : thinkBinghen(level);
+        Promise.resolve(p).then(function (mv) {
+            if (token !== aiToken) return;
+            aiBusy = false;
+            if (gameOver || currentPlayer !== aiColor) return;
+            if (!mv || !isOnBoard(mv.row, mv.col) || board[mv.row][mv.col] !== EMPTY) {
+                LOG.add('⚠ ' + reg.name + ' 未给出可落点，改由本机引擎应对');
+                aiTurnLocal();
+                return;
+            }
+            LOG.add('🎯 ' + reg.name + ' → 落子 (' + mv.row + ', ' + mv.col + ')，用时 ' + (Date.now() - t0) + 'ms');
+            placeStone(mv.row, mv.col, aiColor);
+        }).catch(function (e) {
+            if (token !== aiToken) return;
+            aiBusy = false;
+            LOG.add('⚠ ' + reg.name + ' 异常：' + ((e && e.message) || e) + '（本步已回退本机引擎）');
+            if (!gameOver && currentPlayer === aiColor) aiTurnLocal();
+        });
+        return true;
+    }
+
+    return {
+        tryTurn: tryTurn,
+        forceDifficulty: forceDifficulty,
+        nameOf: function (l) { return regOf(l) ? regOf(l).name : null; }
+    };
+})();
+try { I18N.phrase({ '墨渊': 'Mo Yuan', '冰痕': 'Bing Hen', '墨渊 · 连珠引擎': 'Mo Yuan · Renju engine', '冰痕 · 快速引擎': 'Bing Hen · quick engine' }); } catch (e) {}
+
 function aiTurn() {
     if (studyModeOn) return;   /* 🔮 推理模式：AI 不接管 */
     if (window.NET && NET.online()) return;   /* 联机时 AI 不接管 */
@@ -4097,6 +4277,8 @@ function aiTurn() {
         return;
     }
     if (LLM.shouldPlay()) { LLM.aiMove(); return; }
+    /* v46：新引擎分发（墨渊 = xl-engine wasm / 冰痕 = 内置 JS） */
+    if (window.NEWENG && NEWENG.tryTurn(difficulty)) return;
     const kind = rapfiKindFor(difficulty);
     if (RAPFI.available && kind) { aiTurnEngine(kind); return; }
     aiTurnLocal();
@@ -4909,10 +5091,12 @@ const ACH_DEFS = [
     { id: 'no_undo_win', emoji: '🎯', name: '落子无悔', desc: '全程未悔棋赢下一局' },
     { id: 'draw_1',      emoji: '🤝', name: '以和为贵', desc: '与 AI 下成平局' },
     { id: 'quick_win',  emoji: '🚀', name: '快枪手', desc: '战胜「快速」难度' },
-    { id: 'online_1',   emoji: '🌐', name: '联机初战', desc: '完成第一场联机对局' }
+    { id: 'online_1',   emoji: '🌐', name: '联机初战', desc: '完成第一场联机对局' },
+    { id: 'beat_xl',    emoji: '🌊', name: '墨渊之敌', desc: '战胜「墨渊」连珠引擎' },
+    { id: 'beat_bh',    emoji: '❄️', name: '冰痕之敌', desc: '战胜「冰痕」快速引擎' }
 ];
 const ACH = (function () {
-    let st = { games: 0, wins: 0, losses: 0, draws: 0, streak: 0, best: 0, beatCls: 0, beatNnue: 0, beatQuick: 0, fastWins: 0, cleanWins: 0, onlineGames: 0, unlocked: {} };
+    let st = { games: 0, wins: 0, losses: 0, draws: 0, streak: 0, best: 0, beatCls: 0, beatNnue: 0, beatQuick: 0, beatXl: 0, beatBh: 0, fastWins: 0, cleanWins: 0, onlineGames: 0, unlocked: {} };
     try {
         const raw = localStorage.getItem(ACH_KEY);
         if (raw) { const p = JSON.parse(raw); if (p && typeof p === 'object') { Object.assign(st, p); st.unlocked = p.unlocked || {}; } }
@@ -4932,6 +5116,8 @@ const ACH = (function () {
             case 'draw_1': return st.draws >= 1;
             case 'quick_win': return st.beatQuick >= 1;
             case 'online_1': return (st.onlineGames || 0) >= 1;
+            case 'beat_xl': return (st.beatXl || 0) >= 1;
+            case 'beat_bh': return (st.beatBh || 0) >= 1;
         }
         return false;
     }
@@ -4979,6 +5165,8 @@ const ACH = (function () {
             if (d === 2) st.beatCls++;
             if (d === 3) st.beatNnue++;
             if (d === 4) st.beatQuick++;
+            if (d === 5) st.beatXl = (st.beatXl || 0) + 1;
+            if (d === 6) st.beatBh = (st.beatBh || 0) + 1;
             if (moveHistory.length <= 30) st.fastWins++;
             if (!undoThisGame) st.cleanWins++;
         } else { st.losses++; st.streak = 0; }
@@ -5112,6 +5300,20 @@ function clearAllMemory() {
 
 function setDifficulty(level) {
     if (window.NET && NET.online()) return;   /* 联机模式：禁用 AI 设置，防单边重置棋盘 */
+    /* v46：新引擎守卫 —— 冰痕不支持禁手；两引擎均仅支持 15×15 */
+    if (level === 6 && RULE_RENJU) {
+        try { LOG.add('⚖ 冰痕不支持禁手规则，已切换为「墨渊」'); } catch (e) {}
+        level = 5;
+    }
+    if ((level === 5 || level === 6) && SIZE !== 15) {
+        try { applyBoardSize(15); } catch (e) {}
+        try { localStorage.setItem('startian_board_v1', '15'); } catch (e) {}
+        try {
+            var _b15 = document.getElementById('bsBtn15'), _b19 = document.getElementById('bsBtn19'), _bd = document.getElementById('bsBadge');
+            if (_b15 && _b19 && _bd) { _bd.textContent = '15×15'; _b15.classList.add('on'); _b19.classList.remove('on'); }
+        } catch (e) {}
+        try { LOG.add('📐 墨渊 / 冰痕仅支持 15×15，棋盘已自动切换'); } catch (e) {}
+    }
     difficulty = level;
     try { localStorage.setItem('startian_diff_v1', String(level)); } catch (e) {}   /* v43：记住难度 */
     document.querySelectorAll('.difficulty-btn[data-level]').forEach(btn => {
@@ -5161,6 +5363,11 @@ function setSide(side) {
             return;
         }
         if (n === SIZE) { render(); return; }
+        /* v46：19×19 不支持墨渊/冰痕 → 自动切换为「困难」 */
+        if (n === 19 && (difficulty === 5 || difficulty === 6)) {
+            try { NEWENG.forceDifficulty(2, null); } catch (e) {}
+            try { setTimeout(function () { try { LOG.add('📐 19×19 不支持墨渊 / 冰痕，难度已切换为「困难」'); } catch (e) {} }, 60); } catch (e) {}
+        }
         applyBoardSize(n);
         try { localStorage.setItem('startian_board_v1', String(n)); } catch (e) {}
         try { resetGame(); } catch (e) {}
@@ -5774,6 +5981,11 @@ var syncRuleBtn2 = function () {
 function toggleRuleRenju() {
     RULE_RENJU = !RULE_RENJU;
     try { localStorage.setItem('startian_gomoku_rule_v2', RULE_RENJU ? '1' : '0'); } catch (e) {}
+    /* v46：冰痕无禁手概念 → 切到禁手规则时自动换墨渊 */
+    if (RULE_RENJU && difficulty === 6) {
+        try { NEWENG.forceDifficulty(5, '⚖ 冰痕不支持禁手规则，对手已切换为「墨渊」'); } catch (e) {}
+        try { resetGame(); } catch (e) {}
+    }
     syncRuleBtn2();
     try { drawBoard(); } catch (e) {}
     try { if (window.NET && NET.online() && NET.publishRule) NET.publishRule(RULE_RENJU ? 1 : 0); } catch (e) {}
@@ -5788,7 +6000,10 @@ try {
 /* v43：记住模式——恢复上次的难度与先后手（刷新后不再跳回中等） */
 try {
     var _pd = parseInt(localStorage.getItem('startian_diff_v1') || '', 10);
-    if (_pd >= 0 && _pd <= 4 && _pd !== difficulty) {
+    /* v46：新引擎恢复守卫（禁手 → 墨渊；19 路 → 困难） */
+    if (_pd === 6 && RULE_RENJU) { _pd = 5; }
+    if ((_pd === 5 || _pd === 6) && SIZE !== 15) { _pd = 2; }
+    if (_pd >= 0 && _pd <= 6 && _pd !== difficulty) {
         difficulty = _pd;
         document.querySelectorAll('.difficulty-btn[data-level]').forEach(function (btn) {
             btn.classList.toggle('active', parseInt(btn.dataset.level) === _pd);
