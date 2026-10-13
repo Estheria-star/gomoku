@@ -5101,6 +5101,7 @@ function clearAllMemory() {
 function setDifficulty(level) {
     if (window.NET && NET.online()) return;   /* 联机模式：禁用 AI 设置，防单边重置棋盘 */
     difficulty = level;
+    try { localStorage.setItem('startian_diff_v1', String(level)); } catch (e) {}   /* v43：记住难度 */
     document.querySelectorAll('.difficulty-btn[data-level]').forEach(btn => {
         btn.classList.toggle('active', parseInt(btn.dataset.level) === level);
     });
@@ -5110,6 +5111,7 @@ function setDifficulty(level) {
 
 function setSide(side) {
     if (window.NET && NET.online()) return;   /* 联机模式：禁用先后手切换 */
+    try { localStorage.setItem('startian_side_v1', side); } catch (e) {}   /* v43：记住先后手 */
     if (side === 'ai') { humanColor = WHITE; aiColor = BLACK; }
     else { humanColor = BLACK; aiColor = WHITE; }
     sideBadge.innerText = (humanColor === BLACK) ? '⚫ 你执黑先手' : '⚪ 你执白后手(AI先手)';
@@ -5771,6 +5773,28 @@ try {
     if (_rb) _rb.addEventListener('click', toggleRuleRenju);
 } catch (e) {}
 
+/* v43：记住模式——恢复上次的难度与先后手（刷新后不再跳回中等） */
+try {
+    var _pd = parseInt(localStorage.getItem('startian_diff_v1') || '', 10);
+    if (_pd >= 0 && _pd <= 4 && _pd !== difficulty) {
+        difficulty = _pd;
+        document.querySelectorAll('.difficulty-btn[data-level]').forEach(function (btn) {
+            btn.classList.toggle('active', parseInt(btn.dataset.level) === _pd);
+        });
+        try { LOG.add('  · 已恢复上次难度：' + DIFF_NAME[_pd]); } catch (e) {}
+    }
+} catch (e) {}
+try {
+    var _ps = localStorage.getItem('startian_side_v1');
+    if (_ps === 'ai' || _ps === 'human') {
+        if (_ps === 'ai') { humanColor = WHITE; aiColor = BLACK; } else { humanColor = BLACK; aiColor = WHITE; }
+        try { sideBadge.innerText = (humanColor === BLACK) ? '⚫ 你执黑先手' : '⚪ 你执白后手(AI先手)'; } catch (e) {}
+        document.querySelectorAll('.difficulty-btn[data-side]').forEach(function (btn) {
+            btn.classList.toggle('active', btn.dataset.side === _ps);
+        });
+        try { LOG.add('  · 已恢复上次先后手：' + (humanColor === BLACK ? '你执黑先手' : 'AI 先手')); } catch (e) {}
+    }
+} catch (e) {}
 resetGame();
 try { window.__gomokuTest = { declareDraw: declareDraw, findAnyEmptyCell: findAnyEmptyCell, isBoardFull: isBoardFull,
     study: {
