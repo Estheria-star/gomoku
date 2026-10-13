@@ -1021,7 +1021,7 @@ const DIFF_NAME = ['简单', '中等', '困难', '灵拙', '快速开始'];
 
 // ---------- 记忆（跨对局，localStorage）——按难度分桶，互不污染 ----------
 const MEM_KEY = 'gomoku-ai-v3';
-const PATS_CAP = 160;
+const PATS_CAP = 240;   /* v41：败因记忆容量适度加大 */
 const BOOK_PLIES = 8;
 // 开局定式总开关：false = 不让 AI 走任何定式（大斜 / 静态定式 / 自对弈棋谱），一律自行计算
 const OPENING_BOOK_ON = false;
@@ -4212,21 +4212,31 @@ async function aiTurnEngine(kind) {
             if (learnLinkGate() && quietPosition()) {
                 const cand = learningPick();
                 if (cand && (cand.row !== mv.row || cand.col !== mv.col)) {
-                    // 验算预算：太浅会把引擎深搜的好棋误判（实测 2s 验算噪声可达 ±300），故给到 budget/4
-                    const vms = Math.max(1500, Math.min(5000, Math.round(budget / 4)));
+                    // 验算预算：太浅会把引擎深搜的好棋误判（实测 2s 验算噪声可达 ±300），故给到 budget/3（上限 8s，v41 降噪）
+                    const vms = Math.max(2000, Math.min(8000, Math.round(budget / 3)));
+                    // v41 动态门槛：败因记忆对候选点的支持越强，越倾向于采纳（-400 → 最多放宽到 -250）；
+                    // 无命中时维持超保守基准，任何情况都仍由引擎对照验算把关（最坏=回到引擎原着法）
+                    let eps = LEARN_LINK_EPS;
+                    let memHit = 0;
+                    try {
+                        const mb = memoryBoost(board, humanColor, aiColor);
+                        memHit = mb.get(cand.row + ',' + cand.col) || 0;
+                        if (memHit > 0) eps = Math.min(-250, LEARN_LINK_EPS + Math.min(150, Math.round(memHit / 60)));
+                    } catch (e) {}
                     // 顺序故意如此：先验算学习候选、后验算引擎着法 —— 引擎着法吃到更热的置换表，
                     // 天然把天平压向「保留引擎着法」，最坏情况也只是回到引擎原着法
                     const e2 = await evalAfter(kind, cand, vms, token);
                     const e1 = await evalAfter(kind, mv, vms, token);
                     if (token !== aiToken) return;
                     if (e1 && e2 && typeof e1.ev === 'number' && typeof e2.ev === 'number') {
-                        if (e2.ev <= e1.ev + LEARN_LINK_EPS) {
+                        const hitTag = (memHit > 0) ? '（败因记忆命中 +' + Math.round(memHit) + '）' : '';
+                        if (e2.ev <= e1.ev + eps) {
                             learnLine = '🎓 学习反制介入：候选 (' + cand.row + ',' + cand.col + ') 验算 ' + e2.raw
-                                + '，引擎着法 (' + mv.row + ',' + mv.col + ') 验算 ' + e1.raw + ' → 采纳学习候选〔' + cand.why + '〕';
+                                + '，引擎着法 (' + mv.row + ',' + mv.col + ') 验算 ' + e1.raw + ' → 采纳学习候选〔' + cand.why + '〕' + hitTag;
                             mv = cand;
                         } else {
                             learnLine = '🎓 学习反制：候选 (' + cand.row + ',' + cand.col + ') 验算 ' + e2.raw
-                                + ' 劣于引擎着法 ' + e1.raw + '，已放弃（保留引擎着法）';
+                                + ' 劣于引擎着法 ' + e1.raw + '，已放弃（保留引擎着法）' + hitTag;
                         }
                     }
                 }
