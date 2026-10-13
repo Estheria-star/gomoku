@@ -1,89 +1,542 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; connect-src 'self'">
-    <title>Page not found &middot; GitHub Pages</title>
-    <style type="text/css" media="screen">
-      body {
-        background-color: #f1f1f1;
-        margin: 0;
-        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-      }
+/*
 
-      .container { margin: 50px auto 40px auto; width: 600px; text-align: center; }
+  Copyright (C) 2005-2014 Chengtao Chen
+  Copyright (C) 2014 Chengtao Chen, Kai Sun
+  Copyright (C) 2015-2016 Chengtao Chen, Kai Sun, Tianyi Hao
 
-      a { color: #4183c4; text-decoration: none; }
-      a:hover { text-decoration: underline; }
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License
+  as published by the Free Software Foundation; either version 2
+  of the License, or (at your option) any later version.
 
-      h1 { width: 800px; position:relative; left: -100px; letter-spacing: -1px; line-height: 60px; font-size: 60px; font-weight: 100; margin: 0px 0 50px 0; text-shadow: 0 1px 0 #fff; }
-      p { color: rgba(0, 0, 0, 0.5); margin: 20px 0; line-height: 1.6; }
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
-      ul { list-style: none; margin: 25px 0; padding: 0; }
-      li { display: table-cell; font-weight: bold; width: 1%; }
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-      .logo { display: inline-block; margin-top: 35px; }
-      .logo-img-2x { display: none; }
-      @media
-      only screen and (-webkit-min-device-pixel-ratio: 2),
-      only screen and (   min--moz-device-pixel-ratio: 2),
-      only screen and (     -o-min-device-pixel-ratio: 2/1),
-      only screen and (        min-device-pixel-ratio: 2),
-      only screen and (                min-resolution: 192dpi),
-      only screen and (                min-resolution: 2dppx) {
-        .logo-img-1x { display: none; }
-        .logo-img-2x { display: inline-block; }
-      }
+*/
 
-      #suggestions {
-        margin-top: 35px;
-        color: #ccc;
-      }
-      #suggestions a {
-        color: #666666;
-        font-weight: 200;
-        font-size: 14px;
-        margin: 0 10px;
-      }
+#define _CRT_SECURE_NO_WARNINGS
 
-    </style>
-  </head>
-  <body>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
 
-    <div class="container">
+#include "xl_def.h"
+#include "xl_ai.h"
 
-      <h1>404</h1>
-      <p><strong>File not found</strong></p>
+#define XLCM_DISP   0xf0
+#define XLCM_EXIT   0xf1
+#define XLCM_PLAY  	0xf2
+#define XLCM_HELP   0xf3
+#define XLCM_NEW    0xf4
+#define XLCM_OPEN   0xf5
+#define XLCM_SAVE   0xf6
+#define XLCM_BACK   0xf7
+#define XLCM_THINK  0xf8
+#define XLCM_LEVEL  0xf9
+#define XLCM_INFO   0xfa
+//#define XLCM_CANCEL 0xfb
+#define XLCM_MODE   0xfc
+#define XLCM_UNKOWN 0xff
 
-      <p>
-        The site configured at this address does not
-        contain the requested file.
-      </p>
+typedef struct  XLCM_ITEM
+{
+	int8_t cm;
+	uint8_t id;
+	uint8_t param_num;
+	int8_t *usage;
+}XLCM_ITEM;
 
-      <p>
-        If this is your site, make sure that the filename case matches the URL
-        as well as any file permissions.<br>
-        For root URLs (like <code>http://example.com/</code>) you must provide an
-        <code>index.html</code> file.
-      </p>
+/////////////////////////
+POSFORMAT 	_pos;
+uint8_t _map[256];
+uint8_t _autoStart;
+int _mode=0;
 
-      <p>
-        <a href="https://help.github.com/pages/">Read the full documentation</a>
-        for more information about using <strong>GitHub Pages</strong>.
-      </p>
+int8_t *Str2Point(uint8_t *p,int8_t *str)
+{
+	while(*str==' ') str++;
+	if(str[0]>='A' && str[0]<='O' && str[1]>='A' && str[1]<='O')
+	{
+		*p= MAKEPOS(str[0]-'A',str[1]-'A');
+		return str+2;
+	}
+	*p=0xff;
+	return 0;
+}
 
-      <div id="suggestions">
-        <a href="https://githubstatus.com">GitHub Status</a> &mdash;
-        <a href="https://twitter.com/githubstatus">@githubstatus</a>
-      </div>
+void Pos2Map(uint8_t *map, POSFORMAT *p_ps)
+{
+	uint8_t i;
 
-      <a href="/" class="logo logo-img-1x">
-        <img width="32" height="32" title="" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyRpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoTWFjaW50b3NoKSIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDpFMTZCRDY3REIzRjAxMUUyQUQzREIxQzRENUFFNUM5NiIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDpFMTZCRDY3RUIzRjAxMUUyQUQzREIxQzRENUFFNUM5NiI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOkUxNkJENjdCQjNGMDExRTJBRDNEQjFDNEQ1QUU1Qzk2IiBzdFJlZjpkb2N1bWVudElEPSJ4bXAuZGlkOkUxNkJENjdDQjNGMDExRTJBRDNEQjFDNEQ1QUU1Qzk2Ii8+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+SM9MCAAAA+5JREFUeNrEV11Ik1EY3s4+ddOp29Q5b0opCgKFsoKoi5Kg6CIhuwi6zLJLoYLopq4qsKKgi4i6CYIoU/q5iDAKs6syoS76IRWtyJ+p7cdt7sf1PGOD+e0c3dygAx/67ZzzPM95/877GYdHRg3ZjMXFxepQKNS6sLCwJxqNNuFpiMfjVs4ZjUa/pmmjeD6VlJS8NpvNT4QQ7mxwjSsJiEQim/1+/9lgMHgIr5ohuxG1WCw9Vqv1clFR0dCqBODElV6v90ogEDjGdYbVjXhpaendioqK07CIR7ZAqE49PT09BPL2PMgTByQGsYiZlQD4uMXtdr+JxWINhgINYhGT2MsKgMrm2dnZXgRXhaHAg5jEJodUAHxux4LudHJE9RdEdA+i3Juz7bGHe4mhE9FNrgwBCLirMFV9Okh5eflFh8PR5nK5nDabrR2BNJlKO0T35+Li4n4+/J+/JQCxhmu5h3uJoXNHPbmWZAHMshWB8l5/ipqammaAf0zPDDx1ONV3vurdidqwAQL+pEc8sLcAe1CCvQ3YHxIW8Pl85xSWNC1hADDIv0rIE/o4J0k3kww4xSlwIhcq3EFFOm7KN/hUGOQkt0CFa5WpNJlMvxBEz/IVQAxg/ZRZl9wiHA63yDYieM7DnLP5CiAGsC7I5sgtYKJGWe2A8seFqgFJrJjEPY1Cn3pJ8/9W1e5VWsFDTEmFrBcoDhZJEQkXuhICMyKpjhahqN21hRYATKfUOlDmkygrR4o4C0VOLGJKrOITKB4jijzdXygBKixyC5TDQdnk/Pz8qRw6oOWGlsTKGOQW6OH6FBWsyePxdOXLTgxiyebILZCjz+GLgMIKnXNzc49YMlcRdHXcSwxFVgTInQhC9G33UhNoJLuqq6t345p9y3eUy8OTk5PjAHuI9uo4b07FBaOhsu0A4Unc+T1TU1Nj3KsSSE5yJ65jqF2DDd8QqWYmAZrIM2VlZTdnZmb6AbpdV9V6ec9znf5Q7HjYumdRE0JOp3MjitO4SFa+cZz8Umqe3TCbSLvdfkR/kWDdNQl5InuTcysOcpFT35ZrbBxx4p3JAHlZVVW1D/634VRt+FvLBgK/v5LV9WS+10xMTEwtRw7XvqOL+e2Q8V3AYIOIAXQ26/heWVnZCVfcyKHg2CBgTpmPmjYM8l24GyaUHyaIh7XwfR9ErE8qHoDfn2LTNAVC0HX6MFcBIP8Bi+6F6cdW/DICkANRfx99fEYFQ7Nph5i/uQiA214gno7K+guhaiKg9gC62+M8eR7XsBsYJ4ilam60Fb7r7uAj8wFyuwM1oIOWgfmDy6RXEEQzJMPe23DXrVS7rtyD3Df8z/FPgAEAzWU5Ku59ZAUAAAAASUVORK5CYII=">
-      </a>
+	memset(map, Empty, 256);
 
-      <a href="/" class="logo logo-img-2x">
-        <img width="32" height="32" title="" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyRpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoTWFjaW50b3NoKSIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDpEQUM1QkUxRUI0MUMxMUUyQUQzREIxQzRENUFFNUM5NiIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDpEQUM1QkUxRkI0MUMxMUUyQUQzREIxQzRENUFFNUM5NiI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOkUxNkJENjdGQjNGMDExRTJBRDNEQjFDNEQ1QUU1Qzk2IiBzdFJlZjpkb2N1bWVudElEPSJ4bXAuZGlkOkUxNkJENjgwQjNGMDExRTJBRDNEQjFDNEQ1QUU1Qzk2Ii8+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+hfPRaQAAB6lJREFUeNrsW2mM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">
-      </a>
-    </div>
-  </body>
-</html>
+	for( i=0; i<p_ps->num; i++)
+	{
+		map[p_ps->pos[i]] = SIDE(i);
+	}
+}
+
+void ShowBoard(POSFORMAT *p_pos)
+{
+	uint8_t p,map[256];
+	int _close_bracket=0;
+
+	//if(_silence) return;
+
+	Pos2Map(map,p_pos);
+
+	putchar('\n');
+	puts("\t   a b c d e f g h i j k l m n o");
+	ESB(p);
+	if(POSX(p)==0) printf( "\t%c ", 'a'+POSY(p));
+
+	if(p_pos->num>0)
+	{
+		if(p == p_pos->pos[p_pos->num-1])
+		{
+			putchar('[');
+			_close_bracket=1;
+		}
+		else if(_close_bracket)
+		{
+			putchar(']');
+			_close_bracket=0;
+		}
+		else
+		{
+			putchar(' ');
+		}
+	}
+	else
+	{
+		putchar(' ');
+	}
+
+	switch(map[p])
+	{
+	case Black:
+		putchar('X');
+		break;
+	case White:
+		putchar('O');
+		break;
+	default :
+		switch(p)
+		{
+		case 0x77:
+		case 0x33:
+		case 0x3b:
+		case 0xb3:
+		case 0xbb:
+			putchar('+');
+			break;
+		default:
+			putchar('.');
+		}
+		break;
+	}
+	if(POSX(p)==BW-1)
+	{
+		if(_close_bracket)
+		{
+			putchar(']');
+			_close_bracket=0;
+		}
+		putchar('\n');
+	}
+	ESE();
+	putchar('\n');
+}
+
+uint8_t GetCommand(int8_t *param)
+{
+	static XLCM_ITEM _xlcm[]=
+	{
+		{'O' ,XLCM_OPEN  ,1 ,NULL},
+		{'Q' ,XLCM_EXIT  ,0	,NULL},
+		{'M' ,XLCM_MODE  ,1	,NULL},
+		{'H' ,XLCM_HELP  ,0	,NULL},
+		{'N' ,XLCM_NEW   ,0	,NULL},
+		{'S' ,XLCM_SAVE  ,1	,NULL},
+		{'B' ,XLCM_BACK  ,0	,NULL},
+		{'D' ,XLCM_DISP  ,0 ,NULL},
+		{'T' ,XLCM_THINK ,1 , (int8_t *)"T {pos_string}"},
+		{'L' ,XLCM_LEVEL ,0 , (int8_t *)"L {level}"},
+		{'I' ,XLCM_INFO  ,0 ,NULL}
+	};
+
+	int8_t input[1024],*p;
+	printf("%c[%d]>",SIDE(_pos.num)?'B':'W',_pos.num+1);
+	fflush(stdout);
+
+	//get command
+	fgets((char*)input,sizeof(input),stdin);
+
+	//make upcase and trim '\n'
+	for(p=input;*p;p++)
+	{
+		if(*p>='a' && *p<='z')*p-='a'-'A';
+		if(*p=='\n')
+		{
+			*p='\0';
+			break;
+		}
+	}
+	if(!*input) return XLCM_PLAY;
+
+	//TRACE(input);
+
+	if(input[1]==' ' || !input[1])
+	{
+		int i;
+		for(i=0;i<sizeof(_xlcm)/sizeof(XLCM_ITEM);i++)
+		{
+			if(input[0] == _xlcm[i].cm )
+			{
+				strcpy((char*)param,(char*)input+2);
+				if(_xlcm[i].param_num&&(!input[1]||!input[2]))
+				{
+					if(_xlcm[i].usage)
+					{
+						printf("Usage: ");
+						puts((char*)_xlcm[i].usage);
+						return XLCM_UNKOWN;
+					}
+					break;
+				}
+				return _xlcm[i].id;
+			}
+		}
+	}
+	else
+	{
+		uint8_t p;
+		if(strlen((char*)input)==2 && Str2Point(&p,input)) return p;
+	}
+	puts("Invalid command.");
+	return XLCM_UNKOWN;
+}
+
+void ShowAppInfo(void)
+{
+	puts("xl 0.01");
+	puts("Chengtao Chen, 2005-2014");
+	puts("Kai Sun, 2014");
+	puts("");
+}
+
+void DisplayUsage(void)
+{
+	puts("\t----------------------------------------");
+	//puts("\tL [num]  - set Level.");
+	puts("\tB [num]  - go Back.");
+	//puts("\tO [file] - Open file.");
+	//puts("\tS [file] - Save to file.");
+	puts("\tN        - New game.");
+	puts("\tH        - show Help.");
+	puts("\tI        - show application Info.");
+	puts("\tD        - Display board.");
+	puts("\tQ        - Quit.");
+	puts("\t{XY}     - put stone on special pos.");
+	puts("\t{Enter}  - computer play.");
+	puts("\t----------------------------------------");
+}
+
+void NewGame(void)
+{
+	_pos.num=0;
+	memset(_map, Empty, sizeof(_map));
+	_autoStart=1;
+}
+
+
+bool MoveAt(uint8_t p)
+{
+	if(!PosInBoard(p) || _map[p]!= Empty)
+	{
+		//puts("Invalid move.");
+		return false;
+	}
+
+	_pos.pos[_pos.num]=p;
+	_map[p]=SIDE(_pos.num);
+	_pos.num++;
+
+	switch(XlCheckLastMove(&_pos))
+	{
+	case 2:
+		_autoStart=0;
+		puts("MESSAGE Five in a row.");
+		break;
+	case 1:
+		_autoStart=0;
+		puts("MESSAGE Forbidden move.");
+	}
+	return true;
+}
+
+void MoveBack(void)
+{
+	//uint8_t p;
+	if(_pos.num<=0) return;
+	_pos.num--;
+	_map[_pos.pos[_pos.num]] = Empty;
+	_autoStart=0;
+	ShowBoard(&_pos);
+}
+
+int ComputerPlay(void)
+{
+	uint8_t p;
+	printf("MESSAGE computer: ");
+	if(0xff!=(p = XlSearch(_pos) ))
+	{
+		printf("#%c%c\n",'A'+POSX(p),'A'+POSY(p));
+		MoveAt(p);
+		_autoStart=1;
+		return p;
+	}
+	else
+	{
+		puts("Pass.");
+		_autoStart=0;
+		return 0;
+	}
+}
+
+void SetMode(char *param)
+{
+	sscanf(param,"%d",&_mode);
+	if(_mode<0)_mode=0;
+	if(_mode>1)_mode=1;
+	printf("Mode = %d\n",_mode);
+}
+
+void set_level(char *param)
+{
+	//TODO: dasf
+}
+
+
+
+int PointExist(POSFORMAT *p_pos,uint8_t p)
+{
+	uint8_t i;
+	for(i=0;i<p_pos->num;i++)
+	{
+		if(p==p_pos->pos[i]) return 1;
+	}
+	return 0;
+}
+
+int Str2Pos(POSFORMAT *p_pos,int8_t *buf)
+{
+	int8_t *src;
+	uint8_t p;
+	p_pos->num=0;
+	for(src=Str2Point(&p,buf) ; src; src=Str2Point(&p,src) )
+	{
+		if(PointExist(p_pos,p))  return 0;
+		p_pos->pos[p_pos->num++]=p;
+	}
+	return 1;
+}
+
+void extern_play(int8_t *param)
+{
+	POSFORMAT pos;
+	uint8_t ret;
+
+	printf("MESSAGE ");
+	if(Str2Pos(&pos,param))
+	{
+		//display_board(&pos);
+		if(0xff==(ret=XlSearch(pos)))
+		{
+			puts("Pass.");
+		}
+		else
+		{
+			pos.pos[pos.num++]=ret;
+			ShowBoard(&pos);
+			printf("#%c%c\n",'A'+POSX(ret),'A'+POSY(ret));
+		}
+	}
+}
+
+void DisposeAll(void)
+{
+	XlDispose();
+	printf("MESSAGE ");
+	puts("#");
+}
+
+
+int xl_main()
+{
+	uint8_t cm;
+	static int8_t _param[1024];
+	atexit(DisposeAll);
+
+	ShowAppInfo();
+
+	NewGame();
+	ShowBoard(&_pos);
+
+	while(XLCM_EXIT != (cm= GetCommand(_param)))
+	{
+		switch(cm)
+		{
+		case XLCM_INFO:
+			ShowAppInfo();
+			break;
+		case XLCM_HELP:
+			DisplayUsage();
+			break;
+		case XLCM_NEW:
+			NewGame();
+			ShowBoard(&_pos);
+			break;
+		case XLCM_DISP:
+			ShowBoard(&_pos);
+			break;
+		case XLCM_PLAY:
+			ComputerPlay();
+			ShowBoard(&_pos);
+			break;
+		case XLCM_BACK:
+			MoveBack();
+			ShowBoard(&_pos);
+			break;
+		case XLCM_THINK:
+			extern_play(_param);
+			break;
+		case XLCM_LEVEL:
+			set_level((char*)_param);
+			break;
+		case XLCM_MODE:
+			SetMode((char*)_param);
+			break;
+		case XLCM_UNKOWN:
+			break;
+		default:
+			if(MoveAt(cm))
+			{
+				ShowBoard(&_pos);
+				if(_autoStart)
+				{
+					ComputerPlay();
+					ShowBoard(&_pos);
+				}
+			}
+		}
+	}
+	return 0;
+}
+
+
+#include "pisqpipe.h"
+#include <windows.h>
+
+const char *infotext="name=\"xl\", author=\"Chengtao Chen\", version=\"2016\", country=\"China\", www=\"None\"";
+
+#define MAX_BOARD 15
+int board[MAX_BOARD][MAX_BOARD];
+
+void brain_init() 
+{
+  static int initialized = 0;
+  if(initialized == 0)
+  {
+	  atexit(DisposeAll);
+	  initialized = 1;
+  }
+  if(width != 15 || height != 15){
+    pipeOut("ERROR board size must be 15x15");
+    return;
+  }
+  NewGame();
+  pipeOut("MESSAGE xl");
+  pipeOut("OK");
+}
+
+void brain_restart()
+{
+  int x,y;
+  for(x=0; x<width; x++){
+    for(y=0; y<height; y++){
+      board[x][y]=0;
+    }
+  }
+  NewGame();
+  pipeOut("MESSAGE xl");
+  pipeOut("OK");
+}
+
+int isFree(int x, int y)
+{
+  return x>=0 && y>=0 && x<width && y<height && board[x][y]==0;
+}
+
+void brain_my(int x,int y)
+{
+  if(isFree(x,y)){
+    board[x][y]=1;
+	//FIXME: the move must be made in order
+	MoveAt(MAKEPOS(x,y));
+  }else{
+    pipeOut("ERROR my move [%d,%d]",x,y);
+  }
+}
+
+void brain_opponents(int x,int y) 
+{
+  if(isFree(x,y)){
+    board[x][y]=2;
+	//FIXME: the move must be made in order
+	MoveAt(MAKEPOS(x,y));
+  }else{
+    pipeOut("ERROR opponents's move [%d,%d]",x,y);
+  }
+}
+
+void brain_block(int x,int y)
+{
+  if(isFree(x,y)){
+    board[x][y]=3;
+	//FIXME: not supported now
+  }else{
+    pipeOut("ERROR winning move [%d,%d]",x,y);
+  }
+}
+
+int brain_takeback(int x,int y)
+{
+  if(x>=0 && y>=0 && x<width && y<height && board[x][y]!=0){
+    board[x][y]=0;
+	MoveBack(); //FIXME: the piece should be token back in order
+    return 0;
+  }
+  return 2;
+}
+
+void brain_turn() 
+{
+  int x,y;
+  int p;
+  p = ComputerPlay();
+  x = POSX(p);
+  y = POSY(p);
+  do_mymove(x,y);
+}
+
+void brain_end()
+{
+}
