@@ -102,7 +102,7 @@ self.onmessage = function (ev) {
                     var multi = VARIANT.indexOf('multi') === 0;
                     var cores = 0;
                     try { cores = navigator.hardwareConcurrency || 0; } catch (e) {}
-                    nThreads = multi ? Math.max(1, Math.min(cores || 4, 8)) : 1;
+                    nThreads = multi ? Math.max(1, Math.min((typeof d.threadN === 'number' && d.threadN > 0) ? d.threadN : (cores || 4), 32)) : 1;
                     eng.sendCommand('INFO thread_num ' + nThreads);
                     eng.sendCommand('INFO hash_size ' + (multi ? 131072 : 65536));
                     eng.sendCommand('INFO caution_factor 3');
@@ -124,6 +124,15 @@ self.onmessage = function (ev) {
         try { __run(d); } catch (err) { self.postMessage({ __fail: String((err && err.message) || err) }); }
     } else if (d.__stop) {
         try { if (self.__eng) self.__eng.sendCommand('YXSTOP'); } catch (err) {}
+    } else if (d.__threads) {
+        var _n = Math.max(1, Math.min(+d.n || 1, 32));
+        try {
+            if (self.__eng) {
+                self.__eng.sendCommand('INFO thread_num ' + _n);
+                self.__nthreads = _n;
+                self.postMessage({ __threadsOk: _n });
+            }
+        } catch (e) {}
     } else if (d.__probe2) {
         var st = { outCount: _outCount, buf: _buf.slice(0, 200), eng: !!self.__eng };
         try { st.sc = self.__eng ? typeof self.__eng.sendCommand : 'no-eng'; } catch (e) { st.sc = 'err'; }

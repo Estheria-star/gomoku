@@ -857,6 +857,7 @@ I18N.auto();
                 <button class="difficulty-btn active" data-strength="1">标准</button>
                 <button class="difficulty-btn" data-strength="2">更强</button>
                 <button class="difficulty-btn" data-strength="3">极限</button>
+                <button class="difficulty-btn" data-strength="4">神域</button>
             </div>
         </div>
         <div class="control-group" id="boardSizeGroup">
@@ -877,6 +878,12 @@ I18N.auto();
             </div>
             <div class="difficulty-row">
                 <button class="difficulty-btn" id="mtBtn" style="flex:1;" type="button">⚡ 启用多线程加速</button>
+            </div>
+            <div class="difficulty-row" id="mtThreadsRow" style="display:none;">
+                <button class="difficulty-btn" data-mt="2" type="button">2 线程</button>
+                <button class="difficulty-btn" data-mt="4" type="button">4</button>
+                <button class="difficulty-btn" data-mt="8" type="button">8</button>
+                <button class="difficulty-btn" data-mt="16" type="button">16</button>
             </div>
             <div id="mtNote" style="font-size:12px;font-weight:700;color:#6f93b4;margin-top:6px;line-height:1.6;"></div>
         </div>
@@ -3168,12 +3175,13 @@ const LOG = (function () {
 
 // ==================== 思考强度（灵拙专用，三档全部高于网站「神之一手」） ====================
 // 神之一手：棋子<6 3s / <8 10s / <16 16s / 其余 24s
-const STRENGTH_NAMES = ['极速', '标准', '更强', '极限'];
+const STRENGTH_NAMES = ['极速', '标准', '更强', '极限', '神域'];
 const STRENGTH_PLANS = [
     [3000, 4000, 6000, 8000],       // 极速 ≈ 比标准快 4 倍
     [12000, 16000, 24000, 34000],   // 标准 ≈ 神之一手 ×1.4
     [20000, 28000, 40000, 56000],   // 更强 ≈ ×2.0
-    [32000, 44000, 64000, 88000]    // 极限 ≈ ×3.0
+    [32000, 44000, 64000, 88000],   // 极限 ≈ ×3.0
+    [60000, 90000, 120000, 180000]  // 神域：超长考（1 / 1.5 / 2 / 3 分钟）
 ];
 let strengthLevel = 1;
 try {
@@ -3570,7 +3578,7 @@ const RAPFI = (function () {
                         function onReady(w2, m) { if (settled) return; settled = true; clearTimeout(timer); try { LOG.add(variant.indexOf('multi') === 0 ? '  · 多线程引擎已启动（' + ((m && m.__nthreads) || '?') + ' 线程并行 · 128MB 哈希表）' : '  · 单线程引擎已启动（64MB 哈希表）'); } catch (e) {} resolve(w); },
                         function onFailInit(err) { if (settled) return; settled = true; clearTimeout(timer); try { w.terminate(); } catch (e) {} reject(err); }
                     );
-                    try { w.postMessage({ __init: true, wasmBuf: a.wasmBuf, dataBuf: a.dataBuf }, [a.wasmBuf, a.dataBuf]); }
+                    try { w.postMessage({ __init: true, wasmBuf: a.wasmBuf, dataBuf: a.dataBuf, threadN: prefThreads() }, [a.wasmBuf, a.dataBuf]); }
                     catch (e) { if (!settled) { settled = true; clearTimeout(timer); reject(e); } }
                 });
             }).catch(function (err) {
@@ -3698,6 +3706,20 @@ const RAPFI = (function () {
                 } catch (e) { b.failed = true; reject(e); }
             });
         });
+    }
+
+    /* v42：引擎线程数（用户可选；多线程引擎运行时切换会重建线程并重载权重，约 0.5s） */
+    function prefThreads() {
+        try {
+            var v = parseInt(localStorage.getItem('startian_mt_threads_v1') || '', 10);
+            if (v >= 1 && v <= 32) return v;
+        } catch (e) {}
+        try { return Math.max(1, Math.min(navigator.hardwareConcurrency || 4, 8)); } catch (e) { return 4; }
+    }
+    function setThreads(n) {
+        var b = boots['nnue'];
+        if (!b || !b.worker || b.failed) return false;
+        try { b.worker.postMessage({ __threads: n }); return true; } catch (e) { return false; }
     }
 
     function init(kind) {
@@ -3928,7 +3950,7 @@ const RAPFI = (function () {
         });
     }
 
-    return { available: available, init: init, think: play, best: best, parseCands: parseCands, poolTop: poolTop, cancel: cancel, terminate: terminate, parseSummary: parseSummary,
+    return { available: available, init: init, think: play, best: best, parseCands: parseCands, poolTop: poolTop, cancel: cancel, terminate: terminate, parseSummary: parseSummary, setThreads: setThreads,
         assets: { sources: function () { return ASSET_ROOTS.slice(); }, cacheName: CACHE_NAME } };
 })();
 
@@ -5172,20 +5194,52 @@ function setSide(side) {
     function optin() { try { return localStorage.getItem('startian_mt_v1') === '1'; } catch (x) { return false; } }
     function setOptin(v) { try { localStorage.setItem('startian_mt_v1', v ? '1' : '0'); } catch (x) {} }
 
+    /* v42：线程数选择 */
+    var thRow = document.getElementById('mtThreadsRow');
+    function prefThreads() {
+        try {
+            var v = parseInt(localStorage.getItem('startian_mt_threads_v1') || '', 10);
+            if (v >= 1 && v <= 32) return v;
+        } catch (x) {}
+        try { return Math.max(1, Math.min(navigator.hardwareConcurrency || 4, 8)); } catch (x) { return 4; }
+    }
+    function applyThreads(n) {
+        try { localStorage.setItem('startian_mt_threads_v1', String(n)); } catch (x) {}
+        var sent = false;
+        try { sent = RAPFI.setThreads(n); } catch (x) {}
+        try { LOG.add('  · 引擎线程数已设为 ' + n + (sent ? '（下次思考生效；切换约 0.5s 重载权重）' : '（引擎尚未启动，将在启动时使用）')); } catch (x) {}
+        render();
+    }
+    if (thRow) {
+        Array.prototype.forEach.call(thRow.querySelectorAll('button[data-mt]'), function (bb) {
+            bb.addEventListener('click', function () { applyThreads(parseInt(bb.dataset.mt, 10)); });
+        });
+    }
+
     var _lastSig = '';
     function render() {
         var e = env();
-        var st = { coi: e.coi, optin: optin(), pageHadSW: false };
+        var th = prefThreads();
+        var st = { coi: e.coi, optin: optin(), threads: th, pageHadSW: false };
         try { st.pageHadSW = !!(navigator.serviceWorker && navigator.serviceWorker.controller); } catch (x) {}
         var sig = JSON.stringify(st);
         badge.title = '合作者：' + (e.cores || '?') + ' 核 · 内存档 ' + (e.mem || '?') + ' · SAB ' + (e.sab ? '✓' : '✗') + ' · 隔离 ' + (e.coi ? '✓' : '✗');
+        try {
+            if (thRow) {
+                thRow.style.display = (e.coi && st.optin) ? '' : 'none';
+                Array.prototype.forEach.call(thRow.querySelectorAll('button[data-mt]'), function (bb) {
+                    bb.classList.toggle('on', parseInt(bb.dataset.mt, 10) === th);
+                });
+            }
+        } catch (x) {}
         if (e.coi && st.optin) {
-            badge.textContent = '多线程 ✓' + (e.cores ? ' ' + e.cores + ' 核' : '');
+            badge.textContent = '多线程 ✓ ' + th + ' 线程';
             badge.style.background = '#5cb885';
             btn.textContent = '🔧 关闭多线程（回到单线程）';
             btn.dataset.action = 'off';
             btn.disabled = false;
-            note.textContent = '灵拙已启用多线程引擎（跨源隔离生效 · ' + (e.cores || '?') + ' 核可用）。新对局时将用多核搜索。';
+            note.textContent = '灵拙已启用多线程引擎（跨源隔离生效 · ' + th + ' 线程）。新对局时将用多核搜索。'
+                + (e.cores && th > e.cores ? '（注：' + th + ' 线程超过物理核数 ' + e.cores + '，收益递减）' : '');
         } else if (e.coi) {
             badge.textContent = '单线程（隔离就绪）';
             badge.style.background = '#8fb9e0';
