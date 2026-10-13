@@ -9,11 +9,14 @@
 var qs = (self.location && self.location.search) || '';
 var vm = /[?&]variant=([a-z0-9-]+)/.exec(qs);
 var VARIANT = (vm && vm[1]) || 'single-simd128';
+var mm = /[?&]model=([a-z]+)/.exec(qs);
+var MODEL = (mm && mm[1]) || 'nnue';                 /* 'nnue'（灵拙） | 'classic'（困难） */
+var GLUE = (MODEL === 'classic') ? ('rapfi-classic-' + VARIANT.replace('-simd128', '') + '.js') : ('rapfi-' + VARIANT + '.js');
 var IS_PTHREAD = (self.name === 'em-pthread');
 
 // ── 引擎线程：读 glue，glue 自举线程后自己挂 onmessage ──
 if (IS_PTHREAD) {
-    try { importScripts('rapfi-' + VARIANT + '.js'); } catch (e) {}
+    try { importScripts(GLUE); } catch (e) {}
     return;
 }
 
@@ -78,7 +81,7 @@ self.onmessage = function (ev) {
     var d = ev.data || {};
     if (d.__init) {
         if (typeof Rapfi === 'undefined') {
-            try { importScripts('rapfi-' + VARIANT + '.js'); }
+            try { importScripts(GLUE); }
             catch (err) {
                 self.postMessage({ __fail: 'glue load failed: ' + String((err && err.message) || err) });
                 return;

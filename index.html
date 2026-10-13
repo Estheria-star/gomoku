@@ -3494,56 +3494,61 @@ const RAPFI = (function () {
             return r ? r.arrayBuffer() : null;
         }).catch(function () { return null; });
     }
-    function cacheStoreV2(variant, assets) {
+    function cacheStoreV2(variant, assets, isCls) {
         if (!cacheAvail()) return;
         let wb = null, db = null;
         try { wb = assets.wasmBuf ? assets.wasmBuf.slice(0) : null; db = assets.dataBuf ? assets.dataBuf.slice(0) : null; } catch (e) { wb = null; db = null; }
-        if (!wb || wb.byteLength < 1000 || !db || db.byteLength < 1000000) return;
+        if (!wb || wb.byteLength < 1000 || !db || db.byteLength < 10000) return;
         try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {}); } catch (e) {}
         caches.open(CACHE_NAME).then(function (c) {
             const hb = { 'Content-Type': 'application/octet-stream' };
             return Promise.all([
                 c.put(v2Key(variant, '.wasm'), new Response(wb, { headers: hb })),
-                c.put(v2Key('shared', '.data'), new Response(db, { headers: hb }))
+                c.put(v2Key(isCls ? 'classic' : 'shared', '.data'), new Response(db, { headers: hb }))
             ]);
         }).catch(function () {});
     }
-    function ensureAssetsV2(variant) {
-        const key = 'v2-' + variant;
+    function ensureAssetsV2(variant, model) {
+        const isCls = (model === 'classic');
+        const key = 'v2-' + variant + (isCls ? '-cls' : '');
         if (loaded[key]) return loaded[key];
+        const dataKey = isCls ? 'classic' : 'shared';
+        const dataFile = isCls ? 'rapfi-classic.data' : 'rapfi-upgraded.data';
+        const dataMin = isCls ? 10000 : 1000000;
+        const label = isCls ? '困难·经典' : '灵拙';
         const p = Promise.all([
             cacheGetV2(v2Key(variant, '.wasm')).then(function (b) { return (b && checkWasm(b)) ? b : null; }),
-            cacheGetV2(v2Key('shared', '.data')).then(function (b) { return (b && b.byteLength > 1000000) ? b : null; })
+            cacheGetV2(v2Key(dataKey, '.data')).then(function (b) { return (b && b.byteLength > dataMin) ? b : null; })
         ]).then(function (cached) {
             const w0 = cached[0], d0 = cached[1];
             const needW = !w0, needD = !d0;
             if (!needW && !needD) {
-                try { LOG.add('⚡ 灵拙新一代引擎：本地缓存命中，秒加载' + (variant.indexOf('multi') === 0 ? '（多线程版）' : '')); } catch (e) {}
+                try { LOG.add('⚡ ' + label + '新一代引擎：本地缓存命中，秒加载' + (variant.indexOf('multi') === 0 ? '（多线程版）' : '')); } catch (e) {}
                 return [w0, d0];
             }
-            try { LOG.add('📦 正在加载灵拙新一代引擎资源' + (needW && needD ? '（首次约 30MB）' : '（增量）') + '…'); } catch (e) {}
-            const mkProg = function (label) {
+            try { LOG.add('📦 正在加载' + label + '新一代引擎资源' + (needW && needD && !isCls ? '（首次约 30MB）' : '') + '…'); } catch (e) {}
+            const mkProg = function (lbl) {
                 let lastMB = -1;
                 return function (got) {
                     const mb = got / 1048576;
                     if (mb + 0.01 < lastMB) lastMB = -1;
                     if (mb - lastMB < 3) return;
                     lastMB = mb;
-                    try { LOG.add('  · ' + label + '下载中…已接收 ' + mb.toFixed(1) + ' MB'); } catch (e) {}
+                    try { LOG.add('  · ' + lbl + '下载中…已接收 ' + mb.toFixed(1) + ' MB'); } catch (e) {}
                 };
             };
             return Promise.all([
                 w0 ? Promise.resolve(w0) : fetchAssetFile('rapfi-' + variant + '.wasm', false, mkProg('引擎核心'), '引擎核心'),
-                d0 ? Promise.resolve(d0) : fetchAssetFile('rapfi-upgraded.data', false, mkProg('双权重数据'), '数据包')
+                d0 ? Promise.resolve(d0) : fetchAssetFile(dataFile, false, mkProg(isCls ? '经典模型' : '双权重数据'), isCls ? '经典模型' : '数据包')
             ]);
         }).then(function (arr) {
             const assets = { wasmBuf: arr[0], dataBuf: arr[1] };
             if (!checkWasm(assets.wasmBuf)) throw new Error('wasm 完整性校验失败');
-            try { LOG.add('  · 新一代引擎资源已就绪 ✓（Rapfi 0.43.02 · NNUE 加速）'); } catch (e) {}
-            cacheStoreV2(variant, assets);
+            try { LOG.add('  · ' + label + '新一代引擎资源已就绪 ✓（Rapfi 0.43.02' + (isCls ? ' · 经典评估' : ' · NNUE 加速') + '）'); } catch (e) {}
+            cacheStoreV2(variant, assets, isCls);
             return assets;
         }).catch(function (err) {
-            try { LOG.add('  · ⚠ 新一代引擎资源加载失败：' + ((err && err.message) || err)); } catch (e) {}
+            try { LOG.add('  · ⚠ ' + label + '新一代引擎资源加载失败：' + ((err && err.message) || err)); } catch (e) {}
             throw err;
         });
         loaded[key] = p;
@@ -3557,16 +3562,16 @@ const RAPFI = (function () {
         try { optin = localStorage.getItem('startian_mt_v1') === '1'; } catch (e) {}
         return { coi: coi, optin: optin, multi: coi && optin };
     }
-    function initV2(b) {
+    function initV2(b, model) {
         const mt = mtState();
         const variants = mt.multi ? ['multi-simd128', 'single-simd128'] : ['single-simd128'];
         function attempt(i) {
             if (i >= variants.length) return Promise.reject(new Error('所有引擎变体启动失败'));
             const variant = variants[i];
-            return ensureAssetsV2(variant).then(function (a) {
+            return ensureAssetsV2(variant, model).then(function (a) {
                 return new Promise(function (resolve, reject) {
                     let w;
-                    try { w = new Worker(ASSET_DIR + 'engine-worker.js?variant=' + variant + '&r=39'); }
+                    try { w = new Worker(ASSET_DIR + 'engine-worker.js?variant=' + variant + '&model=' + (model === 'classic' ? 'classic' : 'nnue') + '&r=44'); }
                     catch (e) { reject(e); return; }
                     let settled = false;
                     const timer = setTimeout(function () {
@@ -3730,8 +3735,15 @@ const RAPFI = (function () {
         let chain;
         if (kind === 'nnue' && V2_ENABLED) {
             try { LOG.add('  · 灵拙：新一代引擎（Rapfi 0.43.02 · NNUE 加速 · 双权重）'); } catch (e) {}
-            chain = initV2(b).then(function (w) { b.worker = w; return w; }).catch(function (err) {
+            chain = initV2(b, 'nnue').then(function (w) { b.worker = w; return w; }).catch(function (err) {
                 try { LOG.add('  · ⚠ 新一代引擎不可用（' + ((err && err.message) || err) + '），回退经典通道…'); } catch (e) {}
+                if (b.worker) { try { b.worker.terminate(); } catch (e) {} b.worker = null; }
+                return initLegacy(kind, b);
+            });
+        } else if (kind === 'cls' && V2_ENABLED) {
+            try { LOG.add('  · 困难：新一代引擎（Rapfi 0.43.02 · 经典评估' + (mtState().multi ? ' · 多线程' : '') + '）'); } catch (e) {}
+            chain = initV2(b, 'classic').then(function (w) { b.worker = w; return w; }).catch(function (err) {
+                try { LOG.add('  · ⚠ 困难新一代引擎不可用（' + ((err && err.message) || err) + '），回退经典通道…'); } catch (e) {}
                 if (b.worker) { try { b.worker.terminate(); } catch (e) {} b.worker = null; }
                 return initLegacy(kind, b);
             });
