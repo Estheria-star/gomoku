@@ -3268,6 +3268,13 @@ const RAPFI = (function () {
     const canFetch = (typeof fetch === 'function') && typeof location !== 'undefined' && location.protocol !== 'file:';
     const available = !!(inline && inline.cls && inline.nnue) || canFetch;
     const ASSET_DIR = 'assets/';
+    /* v48：资源 URL 版本串 —— 每次发版 +1。
+       事故背景（2026-10-13）：404 响应同样带 Cache-Control: max-age=14400（4 小时），
+       且 CF/浏览器各层都会缓存它 —— 一旦发布窗口期抓到一次 404，之后 4 小时~1 天内
+       所有用户持续拿到 404（现象：网络正常但资源"一直下载不了"）。
+       给下载 URL 挂版本串 = 每次发版换全新 URL，从根上绕开任何层面的历史坏缓存。 */
+    const ASSET_VER = '48';
+    const ASSET_Q = '?r=' + ASSET_VER;
     /* —— v37：新一代引擎（Rapfi 0.43.02）——SIMD 能力检测（不支持则走经典通道）—— */
     const V2_ENABLED = (function () {
         try {
@@ -3422,7 +3429,8 @@ const RAPFI = (function () {
         const tried = [];
         function attempt(i) {
             if (i >= ASSET_ROOTS.length) return Promise.reject(new Error('all sources failed: ' + name + ' [' + tried.join(' / ') + ']'));
-            const url = ASSET_ROOTS[i] + name;
+            /* 除最后的 raw 兜底源（对 query 兼容性存疑，保持裸 URL）外，全部附加版本参数绕开历史坏缓存 */
+            const url = ASSET_ROOTS[i] + name + ((i === ASSET_ROOTS.length - 1) ? '' : ASSET_Q);
             return fetchStream(url, wantText, onProg).then(function (r) { return { r: r, i: i }; }, function (e1) {
                 return xhrFetch(url, wantText, onProg).then(function (r) { return { r: r, i: i }; }, function (e2) {
                     tried.push('s' + i + ':' + ((e1 && e1.message) || e1));
@@ -3573,7 +3581,7 @@ const RAPFI = (function () {
             return ensureAssetsV2(variant, model).then(function (a) {
                 return new Promise(function (resolve, reject) {
                     let w;
-                    try { w = new Worker(ASSET_DIR + 'engine-worker.js?variant=' + variant + '&model=' + (model === 'classic' ? 'classic' : 'nnue') + '&r=47'); }
+                    try { w = new Worker(ASSET_DIR + 'engine-worker.js?variant=' + variant + '&model=' + (model === 'classic' ? 'classic' : 'nnue') + '&r=48'); }
                     catch (e) { reject(e); return; }
                     let settled = false;
                     const timer = setTimeout(function () {
@@ -4116,7 +4124,7 @@ window.NEWENG = (function () {
             const me = this;
             this.booting = new Promise(function (resolve) {
                 let w;
-                try { w = new Worker('assets/bh-worker.js?v=46'); } catch (e) { resolve(false); return; }
+                try { w = new Worker('assets/bh-worker.js?v=48'); } catch (e) { resolve(false); return; }
                 me.worker = w;
                 w.onmessage = function (ev) {
                     const m = ev.data || {};
@@ -4156,7 +4164,7 @@ window.NEWENG = (function () {
             const me = this;
             this.booting = new Promise(function (resolve) {
                 let w;
-                try { w = new Worker('assets/xl-worker.js?v=46'); } catch (e) { resolve(false); return; }
+                try { w = new Worker('assets/xl-worker.js?v=48'); } catch (e) { resolve(false); return; }
                 me.worker = w;
                 w.onmessage = function (ev) {
                     const m = ev.data || {};
@@ -6660,7 +6668,7 @@ var NET = (function () {
   function ensureLib(cb, err) {
     if (window.mqtt) return cb();
     if (libState === 2) return err();
-    var srcs = ['assets/mqtt.min.js', 'https://cdn.jsdelivr.net/npm/mqtt@5.14.1/dist/mqtt.min.js'];
+    var srcs = ['assets/mqtt.min.js?r=48', 'https://cdn.jsdelivr.net/npm/mqtt@5.14.1/dist/mqtt.min.js'];
     (function next(i) {
       if (i >= srcs.length) { libState = 2; err(); return; }
       var s = document.createElement('script');

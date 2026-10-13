@@ -11,7 +11,12 @@ var vm = /[?&]variant=([a-z0-9-]+)/.exec(qs);
 var VARIANT = (vm && vm[1]) || 'single-simd128';
 var mm = /[?&]model=([a-z]+)/.exec(qs);
 var MODEL = (mm && mm[1]) || 'nnue';                 /* 'nnue'（灵拙） | 'classic'（困难） */
-var GLUE = (MODEL === 'classic') ? ('rapfi-classic-' + VARIANT.replace('-simd128', '') + '.js') : ('rapfi-' + VARIANT + '.js');
+var GLUE0 = (MODEL === 'classic') ? ('rapfi-classic-' + VARIANT.replace('-simd128', '') + '.js') : ('rapfi-' + VARIANT + '.js');
+/* v48：glue 脚本沿用本 worker URL 上的 r 版本串 —— 与主线程资源加载同策略。
+   事故背景：404 响应带 Cache-Control: max-age=14400，被浏览器/CF 任一层缓存后
+   4 小时~1 天内持续 404；版本串让每次发版换全新 URL，从根上绕开历史坏缓存。 */
+var _gq = /[?&]r=([0-9]+)/.exec(qs);
+var GLUE = GLUE0 + ((_gq && _gq[1]) ? ('?r=' + _gq[1]) : '');
 var IS_PTHREAD = (self.name === 'em-pthread');
 
 // ── 引擎线程：读 glue，glue 自举线程后自己挂 onmessage ──
@@ -92,7 +97,7 @@ self.onmessage = function (ev) {
             Rapfi({
                 wasmBinary: d.wasmBuf || undefined,
                 getPreloadedPackage: function () { var b = d.dataBuf || null; d.dataBuf = null; return b; },
-                locateFile: function (p) { return p; },
+                locateFile: function (p) { return p + ((_gq && _gq[1] && p.indexOf('?') < 0) ? ('?r=' + _gq[1]) : ''); },   /* v48：兜底 wasm 加载同样带版本串 */
                 onReceiveStdout: feedChunk,
                 onReceiveStderr: function (l) { self.postMessage({ __err: String(l) }); },
                 setStatus: function () {},
