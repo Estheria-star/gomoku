@@ -103,6 +103,7 @@ self.onmessage = function (ev) {
                 var nThreads = 1;
                 try {
                     var multi = VARIANT.indexOf('multi') === 0;
+                    self.__multi = multi;   /* v47：供运行时 __threads 切换判断（单线程构建忽略线程数变更） */
                     var cores = 0;
                     try { cores = navigator.hardwareConcurrency || 0; } catch (e) {}
                     nThreads = multi ? Math.max(1, Math.min((typeof d.threadN === 'number' && d.threadN > 0) ? d.threadN : (cores || 4), 32)) : 1;
@@ -128,18 +129,24 @@ self.onmessage = function (ev) {
     } else if (d.__stop) {
         try { if (self.__eng) self.__eng.sendCommand('YXSTOP'); } catch (err) {}
     } else if (d.__threads) {
-        var _n = Math.max(1, Math.min(+d.n || 1, 32));
+        /* v47：线程数总开关 —— 由主线程广播给困难/灵拙两个实例；
+           注意消息值为 d.__threads 本身（v42 曾误读 d.n 导致运行时切换恒为 1 线程，已修正）；
+           多线程构建实际切换；单线程构建忽略并诚实回执 1 */
+        var _n = Math.max(1, Math.min(+d.__threads || 1, 32));
         try {
             if (self.__eng) {
-                self.__eng.sendCommand('INFO thread_num ' + _n);
-                self.__nthreads = _n;
-                self.postMessage({ __threadsOk: _n });
+                if (self.__multi) {
+                    self.__eng.sendCommand('INFO thread_num ' + _n);
+                    self.__nthreads = _n;
+                }
+                self.postMessage({ __threadsOk: self.__multi ? _n : 1, __single: !self.__multi });
             }
         } catch (e) {}
     } else if (d.__probe2) {
         var st = { outCount: _outCount, buf: _buf.slice(0, 200), eng: !!self.__eng };
         try { st.sc = self.__eng ? typeof self.__eng.sendCommand : 'no-eng'; } catch (e) { st.sc = 'err'; }
         try { st.keys = self.__eng ? Object.keys(self.__eng).slice(0, 20).join(',') : ''; } catch (e) {}
+        try { st.multi = self.__multi; st.variant = VARIANT; st.model = MODEL; st.nthreads = self.__nthreads; } catch (e) {}
         self.postMessage({ __probe2: st });
     }
 };

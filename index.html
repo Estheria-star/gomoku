@@ -3573,7 +3573,7 @@ const RAPFI = (function () {
             return ensureAssetsV2(variant, model).then(function (a) {
                 return new Promise(function (resolve, reject) {
                     let w;
-                    try { w = new Worker(ASSET_DIR + 'engine-worker.js?variant=' + variant + '&model=' + (model === 'classic' ? 'classic' : 'nnue') + '&r=44'); }
+                    try { w = new Worker(ASSET_DIR + 'engine-worker.js?variant=' + variant + '&model=' + (model === 'classic' ? 'classic' : 'nnue') + '&r=47'); }
                     catch (e) { reject(e); return; }
                     let settled = false;
                     const timer = setTimeout(function () {
@@ -3618,6 +3618,7 @@ const RAPFI = (function () {
             if (m.__log) { b.logs.push(m.__log); if (b.logs.length > 200) b.logs.shift(); return; }
             if (m.__err) { try { console.warn('[rapfi stderr]', m.__err); } catch (e) {} b.logs.push('[stderr] ' + m.__err); if (b.logs.length > 200) b.logs.shift(); return; }
             if (m.__cand) { (b.cands = b.cands || []).push(String(m.__cand).replace(/^MESSAGE\s*/, '')); return; }
+            if (m.__threadsOk != null) { try { LOG.add('  · ' + (b.label || '引擎') + ' 线程数已切换为 ' + m.__threadsOk + ' 线程' + (m.__single ? '（当前单线程模式；偏好已保存，多线程启用后生效）' : '')); } catch (e) {} return; }
             if (m.__probe) { return; }
         };
         w.onerror = function (err) {
@@ -3715,7 +3716,9 @@ const RAPFI = (function () {
         });
     }
 
-    /* v42：引擎线程数（用户可选；多线程引擎运行时切换会重建线程并重载权重，约 0.5s） */
+    /* v42：引擎线程数（用户可选；多线程引擎运行时切换会重建线程并重载权重，约 0.5s）
+       v47：线程数 = 总开关 —— 同时作用于「困难」（经典引擎）与「灵拙」（NNUE），
+            分别向两个已启动的引擎实例广播；未启动的引擎会在下次启动时读取同一偏好 */
     function prefThreads() {
         try {
             var v = parseInt(localStorage.getItem('startian_mt_threads_v1') || '', 10);
@@ -3724,15 +3727,20 @@ const RAPFI = (function () {
         try { return Math.max(1, Math.min(navigator.hardwareConcurrency || 4, 8)); } catch (e) { return 4; }
     }
     function setThreads(n) {
-        var b = boots['nnue'];
-        if (!b || !b.worker || b.failed) return false;
-        try { b.worker.postMessage({ __threads: n }); return true; } catch (e) { return false; }
+        var hits = [];
+        ['nnue', 'cls'].forEach(function (k) {
+            var b = boots[k];
+            if (b && b.worker && !b.failed) {
+                try { b.worker.postMessage({ __threads: n }); hits.push(k); } catch (e) {}
+            }
+        });
+        return hits;   /* 返回已实时生效的引擎列表：['nnue','cls'] / ['cls'] / [] */
     }
 
     function init(kind) {
         const cached = boots[kind];
         if (cached) return cached.ready;
-        const b = { worker: null, logs: [], onMove: null, onFail: null, _resolve: null, _reject: null, failed: false };
+        const b = { worker: null, logs: [], onMove: null, onFail: null, _resolve: null, _reject: null, failed: false, label: (kind === 'nnue') ? '灵拙' : '困难' };
         boots[kind] = b;
         let chain;
         if (kind === 'nnue' && V2_ENABLED) {
@@ -5426,9 +5434,12 @@ function setSide(side) {
     }
     function applyThreads(n) {
         try { localStorage.setItem('startian_mt_threads_v1', String(n)); } catch (x) {}
-        var sent = false;
-        try { sent = RAPFI.setThreads(n); } catch (x) {}
-        try { LOG.add('  · 引擎线程数已设为 ' + n + (sent ? '（下次思考生效；切换约 0.5s 重载权重）' : '（引擎尚未启动，将在启动时使用）')); } catch (x) {}
+        var hits = null;
+        try { hits = RAPFI.setThreads(n); } catch (x) {}
+        var live = (hits && hits.length)
+            ? '（' + hits.map(function (k) { return k === 'nnue' ? '灵拙' : '困难'; }).join(' + ') + ' 已实时切换，约 0.5s 重建线程）'
+            : '（引擎尚未启动，将在启动时生效）';
+        try { LOG.add('  · 引擎线程数已设为 ' + n + '（困难 / 灵拙通用）' + live); } catch (x) {}
         render();
     }
     if (thRow) {
@@ -5459,7 +5470,7 @@ function setSide(side) {
             btn.textContent = '🔧 关闭多线程（回到单线程）';
             btn.dataset.action = 'off';
             btn.disabled = false;
-            note.textContent = '灵拙已启用多线程引擎（跨源隔离生效 · ' + th + ' 线程）。新对局时将用多核搜索。'
+            note.textContent = '多线程已启用（跨源隔离生效 · ' + th + ' 线程）。困难与灵拙均使用多核搜索。'
                 + (e.cores && th > e.cores ? '（注：' + th + ' 线程超过物理核数 ' + e.cores + '，收益递减）' : '');
         } else if (e.coi) {
             badge.textContent = '单线程（隔离就绪）';
@@ -5467,7 +5478,7 @@ function setSide(side) {
             btn.textContent = '⚡ 启用多线程加速';
             btn.dataset.action = 'on';
             btn.disabled = false;
-            note.textContent = '检测到跨源隔离已生效（' + (e.cores || '?') + ' 核可用）：点击启用多线程，灵拙多核搜索、更强更快。';
+            note.textContent = '检测到跨源隔离已生效（' + (e.cores || '?') + ' 核可用）：点击启用多线程，困难与灵拙多核搜索、更强更快。';
         } else if (e.sw) {
             if (st.optin) {
                 badge.textContent = '单线程（启用中…）';
@@ -5482,7 +5493,7 @@ function setSide(side) {
                 btn.textContent = '⚡ 启用多线程加速';
                 btn.dataset.action = 'enable';
                 btn.disabled = false;
-                note.textContent = '检测到可启用多线程加速：将注册一次后台服务并刷新页面（之后灵拙多核搜索）。不启用也可正常使用单线程。';
+                note.textContent = '检测到可启用多线程加速：将注册一次后台服务并刷新页面（之后困难与灵拙多核搜索）。不启用也可正常使用单线程。';
             }
         } else {
             badge.textContent = '单线程';
@@ -6042,6 +6053,8 @@ try { window.__gomokuTest = { declareDraw: declareDraw, findAnyEmptyCell: findAn
     engine: {
         sources: function () { try { return RAPFI.assets.sources(); } catch (e) { return []; } },
         load: function (kind) { return RAPFI.init(kind || 'cls').then(function () { return 'ok'; }, function (e) { return 'fail:' + ((e && e.message) || e); }); },
+        setThreads: function (n) { try { return RAPFI.setThreads(n); } catch (e) { return 'err:' + e.message; } },
+        threadsPref: function () { try { return localStorage.getItem('startian_mt_threads_v1'); } catch (e) { return null; } },
         cacheStatus: function () {
             if (typeof caches === 'undefined') return Promise.resolve('no-caches-api');
             return caches.open('gomoku-engine-assets-v1').then(function (c) { return c.keys(); }).then(function (ks) {
