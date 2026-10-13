@@ -859,6 +859,17 @@ I18N.auto();
                 <button class="difficulty-btn" data-strength="3">极限</button>
             </div>
         </div>
+        <div class="control-group" id="boardSizeGroup">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700;">棋盘尺寸</span>
+                <span class="learning-badge" id="bsBadge" style="background:#8fb9e0;">19×19</span>
+            </div>
+            <div class="difficulty-row">
+                <button class="difficulty-btn" id="bsBtn15" type="button">15×15</button>
+                <button class="difficulty-btn" id="bsBtn19" type="button">19×19</button>
+            </div>
+            <div id="bsNote" style="font-size:12px;font-weight:700;color:#6f93b4;margin-top:6px;line-height:1.6;">单机与推理使用所选尺寸；联机对战固定 19×19（切换会开始新对局）</div>
+        </div>
         <div class="control-group" id="mtGroup">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <span style="font-weight:700;">灵拙引擎环境</span>
@@ -1002,8 +1013,8 @@ I18N.auto();
 //  学习反制五子棋：模式识别 + 对局记忆 + VCF 冲四链 + 迭代加深
 //  支持：可选先后手 / 学习对手习惯与败因 / 重复开局反制
 // ================================================================
-const SIZE = 19;
-const CENTER = (SIZE - 1) / 2;   // 天元坐标（19×19 → 9）
+let SIZE = 19;                       /* v40：支持 15/19 切换 */
+let CENTER = (SIZE - 1) / 2;         // 天元坐标（动态）
 const EMPTY = 0, BLACK = 1, WHITE = 2;
 const MARGIN = 30;
 const DIFF_NAME = ['简单', '中等', '困难', '灵拙', '快速开始'];
@@ -1434,7 +1445,8 @@ function placeInfo(brd, r, c, color) {
 }
 
 // ---------- 预计算全部 88 条线（静态表，避免重复构造） ----------
-const LINE_TABLES = (() => {
+let LINE_TABLES = [];                /* v40：尺寸切换时重建 */
+function buildLineTables() {
     const tables = [];
     for (let r = 0; r < SIZE; r++) {
         const line = [];
@@ -1464,8 +1476,9 @@ const LINE_TABLES = (() => {
             tables.push(line);
         }
     }
-    return tables;
-})();
+    LINE_TABLES = tables;
+}
+buildLineTables();
 
 // ---------- 变体权重（自对弈离线训练 P5 用） ----------
 let AI_VARIANT = null;      // null 标准 | 'atk' 纯进攻 | 'def' 纯防守
@@ -1522,7 +1535,7 @@ function quickCellDual(brd, r, c, color) {
 }
 
 // 候选点（近棋点）快速排序（不精确但廉价，供搜索内部节点排序）
-const _nearMark = new Int32Array(SIZE * SIZE);
+let _nearMark = new Int32Array(SIZE * SIZE);   /* v40：尺寸切换时重建 */
 let _nearGen = 0;
 function nearCells(brd) {
     _nearGen++;
@@ -1678,14 +1691,34 @@ function linesOfCell(r, c) {
     }
     return out;
 }
-const CELL_LINES = (() => {
+let CELL_LINES = [];                 /* v40：尺寸切换时重建 */
+function buildCellLines() {
     const t = Array(SIZE);
     for (let r = 0; r < SIZE; r++) {
         t[r] = Array(SIZE);
         for (let c = 0; c < SIZE; c++) t[r][c] = linesOfCell(r, c);
     }
-    return t;
-})();
+    CELL_LINES = t;
+}
+buildCellLines();
+
+/* —— v40：棋盘尺寸切换（15/19）——重建尺寸相关结构 —— */
+function starPoints(n) {
+    if (n === 15) return [[7, 7], [3, 3], [3, 11], [11, 3], [11, 11]];
+    if (n === 19) return [[9, 9], [3, 3], [3, 9], [3, 15], [9, 3], [9, 15], [15, 3], [15, 9], [15, 15]];
+    return [];
+}
+function applyBoardSize(n) {
+    n = (n === 15) ? 15 : 19;
+    if (n !== SIZE) {
+        SIZE = n;
+        CENTER = (n - 1) / 2;
+        buildLineTables();
+        buildCellLines();
+        try { _nearMark = new Int32Array(SIZE * SIZE); _nearGen = 0; } catch (e) {}
+    }
+    try { drawBoard(); } catch (e) {}
+}
 function lineEvalPair(brd, lines, aiColor) {
     const opp = otherColor(aiColor);
     let av = 0, ov = 0;
@@ -2893,7 +2926,7 @@ function drawBoard() {
         ctx.lineTo(pos, MARGIN + (SIZE - 1) * cell);
         ctx.stroke();
     }
-    const stars = [[9, 9], [3, 3], [3, 9], [3, 15], [9, 3], [9, 15], [15, 3], [15, 9], [15, 15]];
+    const stars = starPoints(SIZE);   /* v40：按尺寸取星位 */
     ctx.fillStyle = 'rgba(79, 147, 216, 0.9)';
     for (const [r, c] of stars) {
         const p = toPixel(r, c);
@@ -5056,6 +5089,58 @@ function setSide(side) {
         ? '♟ 你执黑先手 —— 点击棋盘落子'
         : '♟ AI 执黑先手 —— 自动开局，稍候轮到你');
 }
+
+/* ==================== v40：棋盘尺寸选择（15/19） ==================== */
+(function () {
+    'use strict';
+    /* 读取偏好并应用 */
+    var pref = 19;
+    try { pref = parseInt(localStorage.getItem('startian_board_v1') || '19', 10); } catch (e) {}
+    if (pref !== 15 && pref !== 19) pref = 19;
+    if (pref !== SIZE) { try { applyBoardSize(pref); } catch (e) {} }
+
+    var b15 = document.getElementById('bsBtn15');
+    var b19 = document.getElementById('bsBtn19');
+    var badge = document.getElementById('bsBadge');
+    if (!b15 || !b19 || !badge) return;
+
+    function render() {
+        badge.textContent = SIZE + '×' + SIZE;
+        b15.classList.toggle('on', SIZE === 15);
+        b19.classList.toggle('on', SIZE === 19);
+    }
+    function pick(n) {
+        if (window.NET && NET.online && NET.online()) {
+            try { LOG.add('⚠ 联机对战中不能切换棋盘尺寸'); } catch (e) {}
+            return;
+        }
+        if (n === SIZE) { render(); return; }
+        applyBoardSize(n);
+        try { localStorage.setItem('startian_board_v1', String(n)); } catch (e) {}
+        try { resetGame(); } catch (e) {}
+        try { LOG.add('  · 棋盘已切换为 ' + n + '×' + n + '（已开始新对局）'); } catch (e) {}
+        render();
+    }
+    b15.addEventListener('click', function () { pick(15); });
+    b19.addEventListener('click', function () { pick(19); });
+
+    /* 联机入口守卫：进入大厅前自动切回 19（捕获阶段先于大厅逻辑执行） */
+    var lobbyBtn = document.getElementById('netLobbyBtn');
+    if (lobbyBtn) {
+        lobbyBtn.addEventListener('click', function () {
+            if (SIZE !== 19) {
+                applyBoardSize(19);
+                try { localStorage.setItem('startian_board_v1', '19'); } catch (e) {}
+                try { resetGame(); } catch (e) {}
+                try { LOG.add('  · 联机对战固定 19×19，棋盘已自动调整'); } catch (e) {}
+                render();
+            }
+        }, true);
+    }
+
+    window.__boardSizeUI = { render: render };
+    render();
+})();
 
 /* ==================== v37：引擎环境自检 + 多线程启用 ==================== */
 (function () {
