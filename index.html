@@ -842,10 +842,10 @@ I18N.auto();
             <div class="difficulty-row">
                 <button class="difficulty-btn" data-level="0">简单</button>
                 <button class="difficulty-btn active" data-level="1">中等</button>
-                <button class="difficulty-btn" data-level="2">困难</button>
-                <button class="difficulty-btn" data-level="3">灵拙</button>
-                <button class="difficulty-btn" data-level="5" title="墨渊 · 连珠专精引擎（仅 15×15）">墨渊</button>
-                <button class="difficulty-btn" data-level="6" title="冰痕 · 快速计算引擎（仅 15×15）">冰痕</button>
+                <button class="difficulty-btn" data-level="2" title="Rapfi 经典评估 · 多线程加速">困难</button>
+                <button class="difficulty-btn" data-level="3" title="Rapfi NNUE 神经网络 · 本站最强">灵拙</button>
+                <button class="difficulty-btn" data-level="5" title="XL Engine 攻击型 · 强度接近困难档（仅 15×15）">墨渊</button>
+                <button class="difficulty-btn" data-level="6" title="快速计算型 · 强于中等档（仅 15×15）">冰痕</button>
                 <button class="difficulty-btn" data-level="4">快速开始</button>
             </div>
         </div>
@@ -3273,7 +3273,7 @@ const RAPFI = (function () {
        且 CF/浏览器各层都会缓存它 —— 一旦发布窗口期抓到一次 404，之后 4 小时~1 天内
        所有用户持续拿到 404（现象：网络正常但资源"一直下载不了"）。
        给下载 URL 挂版本串 = 每次发版换全新 URL，从根上绕开任何层面的历史坏缓存。 */
-    const ASSET_VER = '48';
+    const ASSET_VER = '49';
     const ASSET_Q = '?r=' + ASSET_VER;
     /* —— v37：新一代引擎（Rapfi 0.43.02）——SIMD 能力检测（不支持则走经典通道）—— */
     const V2_ENABLED = (function () {
@@ -3581,7 +3581,7 @@ const RAPFI = (function () {
             return ensureAssetsV2(variant, model).then(function (a) {
                 return new Promise(function (resolve, reject) {
                     let w;
-                    try { w = new Worker(ASSET_DIR + 'engine-worker.js?variant=' + variant + '&model=' + (model === 'classic' ? 'classic' : 'nnue') + '&r=48'); }
+                    try { w = new Worker(ASSET_DIR + 'engine-worker.js?variant=' + variant + '&model=' + (model === 'classic' ? 'classic' : 'nnue') + '&r=49'); }
                     catch (e) { reject(e); return; }
                     let settled = false;
                     const timer = setTimeout(function () {
@@ -4124,7 +4124,7 @@ window.NEWENG = (function () {
             const me = this;
             this.booting = new Promise(function (resolve) {
                 let w;
-                try { w = new Worker('assets/bh-worker.js?v=48'); } catch (e) { resolve(false); return; }
+                try { w = new Worker('assets/bh-worker.js?v=49'); } catch (e) { resolve(false); return; }
                 me.worker = w;
                 w.onmessage = function (ev) {
                     const m = ev.data || {};
@@ -4164,7 +4164,7 @@ window.NEWENG = (function () {
             const me = this;
             this.booting = new Promise(function (resolve) {
                 let w;
-                try { w = new Worker('assets/xl-worker.js?v=48'); } catch (e) { resolve(false); return; }
+                try { w = new Worker('assets/xl-worker.js?v=49'); } catch (e) { resolve(false); return; }
                 me.worker = w;
                 w.onmessage = function (ev) {
                     const m = ev.data || {};
@@ -4278,7 +4278,7 @@ window.NEWENG = (function () {
         nameOf: function (l) { return regOf(l) ? regOf(l).name : null; }
     };
 })();
-try { I18N.phrase({ '墨渊': 'Mo Yuan', '冰痕': 'Bing Hen', '墨渊 · 连珠引擎': 'Mo Yuan · Renju engine', '冰痕 · 快速引擎': 'Bing Hen · quick engine' }); } catch (e) {}
+try { I18N.phrase({ '墨渊': 'Mo Yuan', '冰痕': 'Bing Hen', 'Rapfi 经典评估 · 多线程加速': 'Rapfi classic evaluation · multi-threaded', 'Rapfi NNUE 神经网络 · 本站最强': 'Rapfi NNUE neural net · strongest here', 'XL Engine 攻击型 · 强度接近困难档（仅 15×15）': 'XL Engine attacker · close to Hard (15×15 only)', '快速计算型 · 强于中等档（仅 15×15）': 'Quick calculator · above Medium (15×15 only)' }); } catch (e) {}
 
 function aiTurn() {
     if (studyModeOn) return;   /* 🔮 推理模式：AI 不接管 */
@@ -6668,7 +6668,7 @@ var NET = (function () {
   function ensureLib(cb, err) {
     if (window.mqtt) return cb();
     if (libState === 2) return err();
-    var srcs = ['assets/mqtt.min.js?r=48', 'https://cdn.jsdelivr.net/npm/mqtt@5.14.1/dist/mqtt.min.js'];
+    var srcs = ['assets/mqtt.min.js?r=49', 'https://cdn.jsdelivr.net/npm/mqtt@5.14.1/dist/mqtt.min.js'];
     (function next(i) {
       if (i >= srcs.length) { libState = 2; err(); return; }
       var s = document.createElement('script');

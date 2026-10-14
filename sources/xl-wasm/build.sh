@@ -50,7 +50,7 @@ echo "[4/4] 链接 → dist/xl-engine.js + dist/xl-engine.wasm ..."
 "$EMCC" build/xl.o build/xl_ai.o build/shim.o \
   -O3 \
   -s ALLOW_MEMORY_GROWTH=1 \
-  -s INITIAL_MEMORY=67108864 \
+  -s INITIAL_MEMORY=134217728 \
   -s STACK_SIZE=2097152 \
   -s MODULARIZE=1 \
   -s EXPORT_NAME=createXlEngine \

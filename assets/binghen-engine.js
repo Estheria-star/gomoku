@@ -166,15 +166,43 @@
               let info = lineInfoFull(row, col, dx, dy, player);
               let c = info.count;
               let o = info.openEnds;
-              // 活三（一端开放也算活三的变种，这里简化：count===3且openEnds>=1）
-              if(c === 3 && o >= 1) threats++;
+              /* v2 收紧（2026-10-14）：真活三（两端开放）计 2 分、眠三计 1 分 —— 消除"双眠三误报双杀" */
+              if(c === 3 && o === 2) threats += 2;
+              else if(c === 3 && o === 1) threats += 1;
               // 冲四（count===4且openEnds===1）
               if(c === 4 && o === 1) threats += 2;
               // 活四直接必胜
               if(c === 4 && o >= 2) { gameState.board[row][col] = 0; return true; }
           }
           gameState.board[row][col] = 0;
-          return threats >= 2;
+          return threats >= 3;   /* v2：至少"真活三+1 威胁"或"双冲四"才算双杀 */
+      }
+
+
+  /* ================= v2 增强（2026-10-14）：活四威胁检测与封锁 ================= */
+  /* 检测：player 在 (r,c) 落子后是否形成"活四"（>=4 连且两端开放） */
+  function wouldMakeOpenFour(r, c, player) {
+          if(gameState.board[r][c] !== 0) return false;
+          gameState.board[r][c] = player;
+          let danger = false;
+          for(let [dx,dy] of DIRS) {
+              let info = lineInfo(r, c, dx, dy, player);
+              if(info.count >= 4 && info.openEnds >= 2) { danger = true; break; }
+          }
+          gameState.board[r][c] = 0;
+          return danger;
+      }
+
+  /* 扫描：player（对手）任一落子能形成活四的点 → 返回威胁值最大的封锁点 */
+  function findOpenFourBlock(player) {
+          let best = null, bestVal = -1;
+          for(let r=0; r<15; r++) for(let c=0; c<15; c++) {
+              if(gameState.board[r][c] !== 0 || !hasNeighbor(r,c,2)) continue;
+              if(!wouldMakeOpenFour(r, c, player)) continue;
+              let v = positionValue(r, c, player);
+              if(v > bestVal) { bestVal = v; best = { row: r, col: c }; }
+          }
+          return best;
       }
 
   function minimax(depth, alpha, beta, isMax, start, limit) {
@@ -259,14 +287,22 @@
     /* 2. 阻挡玩家直接胜利 */
     var playerWin = findWinningMove(1);
     if (playerWin) return playerWin;
+    /* 2.5 【v2】封锁玩家的活四威胁（活三/跳三的成四点）——防"活三→活四→五"速败链 */
+    var blockMove = findOpenFourBlock(1);
+    if (blockMove) return blockMove;
     /* 3. 自造双杀点（双活三/四三） */
     for (r = 0; r < 15; r++) for (c = 0; c < 15; c++) {
       if (gameState.board[r][c] === 0 && willCreateDoubleThreat(r, c, 2)) return { row: r, col: c };
     }
-    /* 4. 预判玩家双杀点，优先阻挡 */
+    /* 4. 预判玩家双杀点，优先阻挡（v2：选威胁值最大的点，而非坐标序第一个） */
+    var bestBlock = null, bestBlockVal = -1;
     for (r = 0; r < 15; r++) for (c = 0; c < 15; c++) {
-      if (gameState.board[r][c] === 0 && willCreateDoubleThreat(r, c, 1)) return { row: r, col: c };
+      if (gameState.board[r][c] === 0 && willCreateDoubleThreat(r, c, 1)) {
+        var _bv = positionValue(r, c, 1);
+        if (_bv > bestBlockVal) { bestBlockVal = _bv; bestBlock = { row: r, col: c }; }
+      }
     }
+    if (bestBlock) return bestBlock;
     /* 5. 常规深度搜索 */
     return getUltimateHellAIMove();
   }

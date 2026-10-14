@@ -36,13 +36,14 @@
 /* [wasm patch by startian] 内存约束下调静态哈希表：
  *   原 HASHTT_SIZE=_16M（16M×8B=128MB）+ VC4TT_SIZE=_4M×2（2×4M×8B=64MB）
  *   合计 ≈ 203MB 静态内存 —— 桌面可承受，WebAssembly 网页场景不可承受。
- *   下调为 _2M + _1M（合计 32MB）。棋力影响：长考哈希命中率略降，
- *   对网页限时（数秒/步）影响甚微。 */
-#define HASHTT_SIZE _2M
-#define VC4TT_SIZE _1M
+ *   [v49 实验 2026-10-14] 上调为 _4M + _2M（合计 64MB 静态数据，INITIAL_MEMORY 提至 128MB），
+ *   并放宽 VC4 搜索节点上限（10000 → 50000，增强算杀/防杀深度），评估棋力增益；
+ *   对照测试若不显著将回退 _2M + _1M（32MB）。 */
+#define HASHTT_SIZE _4M
+#define VC4TT_SIZE _2M
 #define HASH_KEY uint32_t
-#define MAX_VC4_NODE 10000
-#define NOR_VC4_NODE 10000
+#define MAX_VC4_NODE 50000
+#define NOR_VC4_NODE 50000
 #define MAX_SEARCH_NODE 2147483647
 #define MAX_DEPTH 100
 #define EXT_DEPTH 3
