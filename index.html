@@ -5913,7 +5913,12 @@ var COACH = (function () {
                 'coach.why.generic': '抢占要点，稳住局面',
                 'coach.why.generic2': '占据要点',
                 'coach.reviewTitle': '终局后：灵拙帮你找出本局最值得回看的几手',
-                'coach.reviewTitleRun': '点击停止复盘'
+                'coach.reviewTitleRun': '点击停止复盘',
+                'coach.report.foulItem': '  {mk} 第 {i} 手：你下 {pos}（{r},{c}）——这是黑方禁手「{type}」，依规则直接判负　※棋盘已标 {mk}',
+                'coach.foul.long': '长连',
+                'coach.foul.44': '四四',
+                'coach.foul.33': '三三',
+                'coach.foul.other': '禁手'
             },
             en: {
                 'coach.thinking': '💡 Lingzhuo is thinking… (first use downloads engine assets, one moment)',
@@ -5960,7 +5965,12 @@ var COACH = (function () {
                 'coach.why.generic': 'claims a key point, keeps things steady',
                 'coach.why.generic2': 'claims a key point',
                 'coach.reviewTitle': 'After the game: Lingzhuo finds moves worth revisiting',
-                'coach.reviewTitleRun': 'Click to stop the review'
+                'coach.reviewTitleRun': 'Click to stop the review',
+                'coach.report.foulItem': '  {mk} Move #{i}: played {pos} ({r},{c}) — forbidden move “{type}” under Renju rules — instant loss　※board marked {mk}',
+                'coach.foul.long': 'overline (6+)',
+                'coach.foul.44': 'double-four',
+                'coach.foul.33': 'double-three',
+                'coach.foul.other': 'forbidden move'
             }
         });
     } catch (e) {}
@@ -6058,6 +6068,26 @@ var COACH = (function () {
             }
         } catch (e) {}
         return w;
+    }
+    /* 禁手模式下（黑方）核定某落子是否为禁手 → 返回 'long' / '44' / '33' / null
+       （与游戏裁决同一函数：renjuForbiddenInfo 须在棋子已落位后调用；含成五豁免与长连优先） */
+    function foulTypeOf(posB, r, c) {
+        try {
+            if (typeof RULE_RENJU === 'undefined' || !RULE_RENJU) return null;
+            if (typeof renjuForbiddenInfo !== 'function') return null;
+            const saved = posB[r][c];
+            posB[r][c] = BLACK;
+            let info = null;
+            try { info = renjuForbiddenInfo(posB, r, c, BLACK); } finally { posB[r][c] = saved; }
+            return (info && info.foul) ? info.foul : null;
+        } catch (e) { return null; }
+    }
+    function foulKey(type) {
+        const t = String(type || '');
+        if (t === 'long' || /长连/.test(t)) return 'coach.foul.long';
+        if (t === '44' || /四四/.test(t)) return 'coach.foul.44';
+        if (t === '33' || /三三/.test(t)) return 'coach.foul.33';
+        return 'coach.foul.other';
     }
     /* 一句话理由 → 返回 i18n 键数组（在 brd 上评估 (r,c) 对 me 方价值） */
     function reasonFor(brd, r, c, me, opp) {
@@ -6199,6 +6229,10 @@ var COACH = (function () {
                 for (let k = 0; k < top.length; k++) {
                     const f = top[k];
                     mk.push({ row: f.played.row, col: f.played.col, n: k + 1 });
+                    if (f.foul) {
+                        lines.push(T('coach.report.foulItem', { mk: marks[k], i: f.i + 1, pos: posName(f.played.row, f.played.col), r: f.played.row, c: f.played.col, type: T(foulKey(f.foul)) }));
+                        continue;
+                    }
                     const why = whyText(reasonFor(boardFromBody(bodyOfMoves(moveHistory.slice(0, f.i))), f.best.row, f.best.col, humanColor, aiColor)).replace(/[。．.!！;；]+$/, '');
                     const lossTxt = (f.loss >= 50000) ? T('coach.report.blunder') : T('coach.report.loss', { x: Math.max(0, Math.round(f.loss)) });
                     lines.push(T('coach.report.item', {
@@ -6226,6 +6260,15 @@ var COACH = (function () {
             const played = moveHistory[i];
             const before = bodyOfMoves(moveHistory.slice(0, i));
             const posB = boardFromBody(before);
+            /* 禁手模式：黑方落子若为禁手（长连/四四/三三）→ 直接判负，优先点名（规则性失误，无需引擎） */
+            if (played.player === BLACK) {
+                const ft = foulTypeOf(posB, played.row, played.col);
+                if (ft) {
+                    flagged.push({ i: i, played: played, best: null, loss: 99500, foul: ft });
+                    done++;
+                    return step();
+                }
+            }
             const meWins = legalWins(posB, humanColor);
             let playedIsWin = false;
             for (let w = 0; w < meWins.length; w++) {
