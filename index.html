@@ -1166,6 +1166,7 @@ let studyHintPt = null;
 let coachHint = null;          /* 💡 v50 灵拙教练：本步提示落点 {row,col} */
 let reviewMarks = null;        /* 📋 v50 复盘：标记 [{row,col,n,tier}]（n>0 关键手；无 n=小点） */
 let reviewSug = null;          /* 📋 v51 复盘：灵拙建议点 [{row,col}]（绿点） */
+let reviewView = null;         /* 📋 v52 回看模式：{board, played, sugg, i}（棋盘临时展示历史局面） */
 let moveHistory = [];       // {row,col,player}
 let playerMoves = [];       // 人类落子（学习用）
 let gameRecorded = false;
@@ -2949,7 +2950,9 @@ function updateStatus() {
 }
 
 function drawBoard() {
-    try { if (!studyModeOn) refreshFoul2(); } catch (e) {}
+    try { if (!studyModeOn && !reviewView) refreshFoul2(); } catch (e) {}
+    var __rvSaved = reviewView ? board : null;
+    if (reviewView) board = reviewView.board;
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
     const grad = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, W * 0.7);
@@ -3031,7 +3034,7 @@ function drawBoard() {
             ctx.stroke();
         }
     }
-    if (!studyModeOn && moveHistory.length > 0) {
+    if (!studyModeOn && !reviewView && moveHistory.length > 0) {
         const last = moveHistory[moveHistory.length - 1];
         const p = toPixel(last.row, last.col);
         ctx.fillStyle = '#e33';
@@ -3041,7 +3044,7 @@ function drawBoard() {
     }
     // 热度提示（学习激活且轮到 AI 时轻量显示不需要）
     /* 🏆 胜利连线（叠画在最上层） */
-    if (window.__winline && window.__winline.active()) {
+    if (!reviewView && window.__winline && window.__winline.active()) {
         try { window.__winline.draw(ctx, toPixel, cell); } catch (e) {}
     }
     /* 🔮 推理模式：推荐落点标记（金色双环 + 十字） */
@@ -3065,7 +3068,7 @@ function drawBoard() {
         } catch (e) {}
     }
     /* 💡 v50 灵拙教练：本步提示标记（紫色双环 + 中心点） */
-    if (!studyModeOn && coachHint) {
+    if (!studyModeOn && !reviewView && coachHint) {
         try {
             const _cp = toPixel(coachHint.row, coachHint.col);
             ctx.save();
@@ -3081,7 +3084,7 @@ function drawBoard() {
         } catch (e) {}
     }
     /* 📋 v50/v51 复盘标记：关键手（红环+序号）/ 其他失误（彩色小点）/ 灵拙建议（绿点） */
-    if (reviewMarks && reviewMarks.length) {
+    if (!reviewView && reviewMarks && reviewMarks.length) {
         try {
             for (let _ri = 0; _ri < reviewMarks.length; _ri++) {
                 const _rm = reviewMarks[_ri];
@@ -3111,7 +3114,7 @@ function drawBoard() {
         } catch (e) {}
     }
     /* 📋 v51 复盘：灵拙建议点（绿色双环小点） */
-    if (reviewSug && reviewSug.length) {
+    if (!reviewView && reviewSug && reviewSug.length) {
         try {
             for (let _si = 0; _si < reviewSug.length; _si++) {
                 const _sm = reviewSug[_si];
@@ -3129,6 +3132,29 @@ function drawBoard() {
             }
         } catch (e) {}
     }
+    /* 📋 v52 回看模式标记：本步落点（橙环）+ 灵拙建议（绿点） */
+    if (reviewView) {
+        try {
+            const _vp = toPixel(reviewView.played.row, reviewView.played.col);
+            ctx.save();
+            ctx.strokeStyle = 'rgba(235, 130, 55, 0.95)';
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(_vp.x, _vp.y, cell * 0.46, 0, 2 * Math.PI); ctx.stroke();
+            if (reviewView.sugg) {
+                const _vq = toPixel(reviewView.sugg.row, reviewView.sugg.col);
+                ctx.strokeStyle = 'rgba(46, 168, 100, 0.95)';
+                ctx.lineWidth = 2.6;
+                ctx.beginPath(); ctx.arc(_vq.x, _vq.y, cell * 0.3, 0, 2 * Math.PI); ctx.stroke();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+                ctx.lineWidth = 1.3;
+                ctx.beginPath(); ctx.arc(_vq.x, _vq.y, cell * 0.38, 0, 2 * Math.PI); ctx.stroke();
+                ctx.fillStyle = 'rgba(46, 168, 100, 0.9)';
+                ctx.beginPath(); ctx.arc(_vq.x, _vq.y, cell * 0.1, 0, 2 * Math.PI); ctx.fill();
+            }
+            ctx.restore();
+        } catch (e) {}
+    }
+    if (__rvSaved) board = __rvSaved;
 }
 
 // ---------- 流程 ----------
@@ -5162,6 +5188,7 @@ const LLM = (function () {
 // ---------- 交互 ----------
 function handleCanvasClick(e) {
     if (studyModeOn) { studyBoardClick(e, false); return; }
+    try { if (window.COACH && COACH.reviewClick && COACH.reviewClick(e, false)) return; } catch (er) {}
     if (gameOver || currentPlayer !== humanColor) return;
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
@@ -5180,6 +5207,7 @@ function handleCanvasClick(e) {
 
 function handleTouch(e) {
     if (studyModeOn) { e.preventDefault(); studyBoardClick(e, true); return; }
+    try { if (window.COACH && COACH.reviewClick && COACH.reviewClick(e, true)) { e.preventDefault(); return; } } catch (er) {}
     if (gameOver || currentPlayer !== humanColor) return;
     e.preventDefault();
     const touch = e.touches[0];
@@ -5955,7 +5983,7 @@ var COACH = (function () {
                 'coach.report.turnpt': '   ▼ 转折点：第 {i} 手（估算亏损约 {x}）',
                 'coach.report.key': '── 关键手 ──',
                 'coach.report.fullhead': '── 全谱逐手 ──',
-                'coach.report.legend': '（红圈=关键手 · 绿点=灵拙建议 · 黄点=缓手 · 橙点=恶手）',
+                'coach.report.legend': '（红圈=关键手 · 绿点=灵拙建议 · 黄点=缓手 · 橙点=恶手 · 标记可点击回看）',
                 'coach.report.extra': '；这步之后对方取得了{list}',
                 'coach.report.lossShort': ' · 损失≈{x}',
                 'coach.full.ok': '  {i}. {sym} {pos}　{g}',
@@ -5963,8 +5991,18 @@ var COACH = (function () {
                 'coach.full.foul': '  {i}. ✗ {pos}　{g}（{type}）',
                 'coach.g.br': '妙手', 'coach.g.gd': '好棋', 'coach.g.st': '稳手', 'coach.g.sl': '缓手', 'coach.g.er': '恶手', 'coach.g.bl': '败着',
                 'coach.th.open4': '活四', 'coach.th.four': '冲四', 'coach.th.open3': '活三',
-                'coach.done.some2': '📋 复盘完成：准确率 {acc}% · 关键手 {n} 处（红圈 + 绿点建议 已标）',
-                'coach.done.none2': '📋 复盘完成：准确率 {acc}% —— 没有明显恶手，下得很稳 👏'
+                'coach.done.some2': '📋 复盘完成：准确率 {acc}% · 关键手 {n} 处（红圈+绿点已标，点标记可回看）',
+                'coach.done.none2': '📋 复盘完成：准确率 {acc}% —— 没有明显恶手，下得很稳 👏',
+                'coach.view.bar': '🔍 回看第 {i} 手：你下 {pos}（橙圈）；灵拙建议 {bpos}（绿点）　— 点击棋盘任意处退出',
+                'coach.view.barNoSug': '🔍 回看第 {i} 手：你下 {pos}（橙圈）　— 点击棋盘任意处退出',
+                'coach.report.phasehead': '── 阶段点评 ──',
+                'coach.phase.line': '{name}（第 {a}-{b} 手）：准确率 {acc}%{note}',
+                'coach.phase.stable': '，发挥稳定',
+                'coach.phase.worst': '；最需回看：第 {i} 手（{g}）',
+                'coach.phase.turn': '　🔻 转折出在这里：第 {i} 手（{g}）',
+                'coach.phase.open': '开局',
+                'coach.phase.mid': '中盘',
+                'coach.phase.end': '收官'
             },
             en: {
                 'coach.thinking': '💡 Lingzhuo is thinking… (first use downloads engine assets, one moment)',
@@ -6023,7 +6061,7 @@ var COACH = (function () {
                 'coach.report.turnpt': '   ▼ Turning point: move #{i} (est. loss ≈ {x})',
                 'coach.report.key': '── Key moments ──',
                 'coach.report.fullhead': '── Move by move ──',
-                'coach.report.legend': '(red ring = key moment · green dot = Lingzhuo suggestion · amber = inaccuracy · orange = mistake)',
+                'coach.report.legend': '(red ring = key moment · green dot = Lingzhuo suggestion · amber = inaccuracy · orange = mistake · marks are tappable)',
                 'coach.report.extra': '; afterwards your opponent gained {list}',
                 'coach.report.lossShort': ' · loss≈{x}',
                 'coach.full.ok': '  {i}. {sym} {pos}　{g}',
@@ -6031,8 +6069,18 @@ var COACH = (function () {
                 'coach.full.foul': '  {i}. ✗ {pos}　{g} ({type})',
                 'coach.g.br': 'Brilliant', 'coach.g.gd': 'Good', 'coach.g.st': 'Steady', 'coach.g.sl': 'Inaccuracy', 'coach.g.er': 'Mistake', 'coach.g.bl': 'Blunder',
                 'coach.th.open4': 'an open four', 'coach.th.four': 'a four threat', 'coach.th.open3': 'an open three',
-                'coach.done.some2': '📋 Review done: accuracy {acc}% · {n} key moments (red rings + green dots marked)',
-                'coach.done.none2': '📋 Review done: accuracy {acc}% — no clear blunders, well played! 👏'
+                'coach.done.some2': '📋 Review done: accuracy {acc}% · {n} key moments (marked; tap a mark to replay)',
+                'coach.done.none2': '📋 Review done: accuracy {acc}% — no clear blunders, well played! 👏',
+                'coach.view.bar': '🔍 Replaying move #{i}: you played {pos} (orange ring); Lingzhuo suggests {bpos} (green dot)　— click anywhere to exit',
+                'coach.view.barNoSug': '🔍 Replaying move #{i}: you played {pos} (orange ring)　— click anywhere to exit',
+                'coach.report.phasehead': '── Phase recap ──',
+                'coach.phase.line': '{name} (moves {a}-{b}): accuracy {acc}%{note}',
+                'coach.phase.stable': ' — solid play',
+                'coach.phase.worst': '; worth revisiting: move #{i} ({g})',
+                'coach.phase.turn': '　🔻 turning point here: move #{i} ({g})',
+                'coach.phase.open': 'Opening',
+                'coach.phase.mid': 'Middlegame',
+                'coach.phase.end': 'Endgame'
             }
         });
     } catch (e) {}
@@ -6042,6 +6090,62 @@ var COACH = (function () {
     function posName(r, c) { return COL_LETTERS.charAt(c) + (r + 1); }
     function bar(text) { const el = $('coachBar'); if (!el) return; el.classList.remove('off'); el.innerText = String(text || ''); }
     function barHide() { const el = $('coachBar'); if (el) { el.classList.add('off'); el.innerText = ''; } }
+
+    /* ---------- 📋 v52 复盘回看：点标记进入历史局面 ---------- */
+    let lastDoneBar = '';
+    function enterView(mark) {
+        try {
+            if (!mark) return;
+            const after = boardFromBody(bodyOfMoves(moveHistory.slice(0, mark.i + 1)));
+            reviewView = {
+                board: after,
+                played: { row: mark.row, col: mark.col },
+                sugg: (mark.bestR != null) ? { row: mark.bestR, col: mark.bestC } : null,
+                i: mark.i
+            };
+            const pos = posName(mark.row, mark.col);
+            if (reviewView.sugg) bar(T('coach.view.bar', { i: mark.i + 1, pos: pos, bpos: posName(reviewView.sugg.row, reviewView.sugg.col) }));
+            else bar(T('coach.view.barNoSug', { i: mark.i + 1, pos: pos }));
+            drawBoard();
+        } catch (e) {}
+    }
+    function exitView() {
+        reviewView = null;
+        if (lastDoneBar) bar(lastDoneBar);
+        drawBoard();
+    }
+    /* 棋盘点击拦截：回看模式下消费全部点击；正常终局下仅在点到标记时消费 */
+    function reviewClick(ev, isTouch) {
+        try {
+            if (studyModeOn) return false;
+            const e = isTouch ? (ev.touches && ev.touches[0]) : ev;
+            if (!e) return false;
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
+            const cell = (canvas.width - 2 * MARGIN) / (SIZE - 1);
+            const hit = function (list) {
+                let best = null, bd = 1e9;
+                for (let i = 0; i < (list || []).length; i++) {
+                    const m = list[i];
+                    const px = MARGIN + m.col * cell, py = MARGIN + m.row * cell;
+                    const d = Math.hypot(mouseX - px, mouseY - py);
+                    if (d < cell * 0.62 && d < bd) { bd = d; best = m; }
+                }
+                return best;
+            };
+            if (reviewView) {
+                const m2 = hit(reviewMarks);
+                if (m2 && m2.i !== reviewView.i) { enterView(m2); return true; }
+                exitView();
+                return true;
+            }
+            if (!gameOver || !reviewMarks || !reviewMarks.length) return false;
+            const m = hit(reviewMarks);
+            if (m) { enterView(m); return true; }
+            return false;
+        } catch (e) { return false; }
+    }
 
     let lastAskTxt = '', lastRevTxt = '';
     function sync() {
@@ -6265,6 +6369,8 @@ var COACH = (function () {
         coachHint = null;
         reviewMarks = null;
         reviewSug = null;
+        reviewView = null;
+        lastDoneBar = '';
         barHide();
         try { sync(); } catch (e) {}
     }
@@ -6281,6 +6387,8 @@ var COACH = (function () {
         const t = ++reviewToken;
         reviewMarks = null;
         reviewSug = null;
+        reviewView = null;
+        lastDoneBar = '';
         drawBoard();
         bar(T('coach.review.progress', { k: 0, n: idxs.length }));
         sync();
@@ -6341,6 +6449,41 @@ var COACH = (function () {
             lines.push(T('coach.report.stat', { acc: acc, br: cnt.br, gd: cnt.gd, st: cnt.st, sl: cnt.sl, er: cnt.er, bl: cnt.bl }));
             lines.push(T('coach.report.curve') + spark.join(''));
             if (scored.length) lines.push(T('coach.report.turnpt', { i: scored[0].i + 1, x: Math.max(0, Math.round(scored[0].loss)) }));
+            /* —— 阶段点评（开局/中盘/收官）—— */
+            if (flagged.length >= 3) {
+                lines.push(T('coach.report.phasehead'));
+                const totalN = flagged.length;
+                const segs = [
+                    [0, Math.ceil(totalN / 3), 'coach.phase.open'],
+                    [Math.ceil(totalN / 3), Math.ceil(totalN * 2 / 3), 'coach.phase.mid'],
+                    [Math.ceil(totalN * 2 / 3), totalN, 'coach.phase.end']
+                ];
+                for (let si = 0; si < segs.length; si++) {
+                    const sa = segs[si][0], sb = segs[si][1];
+                    if (sb <= sa) continue;
+                    const seg = flagged.slice(sa, sb);
+                    let goodN = 0;
+                    for (let sj = 0; sj < seg.length; sj++) {
+                        const gk2 = seg[sj].gk;
+                        if (gk2 === 'coach.g.br' || gk2 === 'coach.g.gd' || gk2 === 'coach.g.st') goodN++;
+                    }
+                    const segAcc = Math.round(100 * goodN / seg.length);
+                    let worst = null;
+                    for (let sk = 0; sk < seg.length; sk++) {
+                        const fc = seg[sk];
+                        if (fc.loss != null && fc.loss >= LOSS_FLAG_MIN && (!worst || fc.loss > worst.loss)) worst = fc;
+                    }
+                    let note;
+                    if (worst) {
+                        note = (scored.length && worst === scored[0])
+                            ? T('coach.phase.turn', { i: worst.i + 1, g: T(worst.gk) })
+                            : T('coach.phase.worst', { i: worst.i + 1, g: T(worst.gk) });
+                    } else {
+                        note = T('coach.phase.stable');
+                    }
+                    lines.push(T('coach.phase.line', { name: T(segs[si][2]), a: seg[0].i + 1, b: seg[seg.length - 1].i + 1, acc: segAcc, note: note }));
+                }
+            }
             let barTxt;
             if (!top.length) {
                 barTxt = T('coach.done.none2', { acc: acc });
@@ -6349,7 +6492,7 @@ var COACH = (function () {
                 const mk = [], sug = [];
                 for (let k = 0; k < top.length; k++) {
                     const f = top[k];
-                    mk.push({ row: f.played.row, col: f.played.col, n: k + 1 });
+                    mk.push({ row: f.played.row, col: f.played.col, n: k + 1, i: f.i, bestR: f.best ? f.best.row : null, bestC: f.best ? f.best.col : null });
                     if (f.best) sug.push({ row: f.best.row, col: f.best.col });
                     if (f.foul) {
                         lines.push(T('coach.report.foulItem', { mk: marks[k], i: f.i + 1, pos: posName(f.played.row, f.played.col), r: f.played.row, c: f.played.col, type: T(foulKey(f.foul)) }));
@@ -6365,7 +6508,18 @@ var COACH = (function () {
                         why: why, loss: lossTxt, extra: extra
                     }));
                 }
-                reviewMarks = mk;
+                const dots = [];
+                for (let f3 = 0; f3 < flagged.length; f3++) {
+                    const fn = flagged[f3];
+                    if (!(fn.loss != null && fn.loss >= LOSS_FLAG_MIN)) continue;
+                    if (top.indexOf(fn) >= 0) continue;
+                    dots.push({
+                        row: fn.played.row, col: fn.played.col, n: 0, i: fn.i,
+                        tier: (fn.gk === 'coach.g.sl') ? 'slow' : ((fn.gk === 'coach.g.er') ? 'err' : 'blunder'),
+                        bestR: fn.best ? fn.best.row : null, bestC: fn.best ? fn.best.col : null
+                    });
+                }
+                reviewMarks = mk.concat(dots);
                 reviewSug = sug;
                 barTxt = T('coach.done.some2', { acc: acc, n: top.length });
             }
@@ -6387,6 +6541,7 @@ var COACH = (function () {
             lines.push(T('coach.report.legend'));
             lines.push(T('coach.report.foot'));
             try { LOG.block(lines); } catch (e) {}
+            lastDoneBar = barTxt;
             bar(barTxt);
             drawBoard();
             sync();
@@ -6459,8 +6614,8 @@ var COACH = (function () {
         }
         step();
     }
-    return { ask: ask, review: review, reset: reset, onGameEnd: onGameEnd, sync: sync, bar: bar, barHide: barHide,
-        state: function () { return { inkBusy: inkBusy, reviewRunning: reviewRunning, hint: coachHint, marks: reviewMarks }; } };
+    return { ask: ask, review: review, reset: reset, onGameEnd: onGameEnd, sync: sync, bar: bar, barHide: barHide, reviewClick: reviewClick,
+        state: function () { return { inkBusy: inkBusy, reviewRunning: reviewRunning, hint: coachHint, marks: reviewMarks, view: reviewView ? { i: reviewView.i, played: reviewView.played, sugg: reviewView.sugg } : null }; } };
 })();
 
 
