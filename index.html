@@ -1164,7 +1164,8 @@ let winner = null;
 let studyModeOn = false;
 let studyHintPt = null;
 let coachHint = null;          /* 💡 v50 灵拙教练：本步提示落点 {row,col} */
-let reviewMarks = null;        /* 📋 v50 复盘：恶手标记 [{row,col,n}] */
+let reviewMarks = null;        /* 📋 v50 复盘：标记 [{row,col,n,tier}]（n>0 关键手；无 n=小点） */
+let reviewSug = null;          /* 📋 v51 复盘：灵拙建议点 [{row,col}]（绿点） */
 let moveHistory = [];       // {row,col,player}
 let playerMoves = [];       // 人类落子（学习用）
 let gameRecorded = false;
@@ -3079,23 +3080,51 @@ function drawBoard() {
             ctx.restore();
         } catch (e) {}
     }
-    /* 📋 v50 复盘：恶手标记（红色圆环 + 序号角标） */
+    /* 📋 v50/v51 复盘标记：关键手（红环+序号）/ 其他失误（彩色小点）/ 灵拙建议（绿点） */
     if (reviewMarks && reviewMarks.length) {
         try {
             for (let _ri = 0; _ri < reviewMarks.length; _ri++) {
                 const _rm = reviewMarks[_ri];
                 const _rp = toPixel(_rm.row, _rm.col);
                 ctx.save();
-                ctx.strokeStyle = 'rgba(232, 78, 60, 0.95)';
-                ctx.lineWidth = 3;
-                ctx.beginPath(); ctx.arc(_rp.x, _rp.y, cell * 0.46, 0, 2 * Math.PI); ctx.stroke();
-                ctx.fillStyle = 'rgba(232, 78, 60, 0.95)';
-                ctx.beginPath(); ctx.arc(_rp.x + cell * 0.4, _rp.y - cell * 0.4, cell * 0.21, 0, 2 * Math.PI); ctx.fill();
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold ' + Math.max(10, cell * 0.27) + 'px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(String(_rm.n), _rp.x + cell * 0.4, _rp.y - cell * 0.4 + 1);
+                if (_rm.n) {
+                    ctx.strokeStyle = 'rgba(232, 78, 60, 0.95)';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.arc(_rp.x, _rp.y, cell * 0.46, 0, 2 * Math.PI); ctx.stroke();
+                    ctx.fillStyle = 'rgba(232, 78, 60, 0.95)';
+                    ctx.beginPath(); ctx.arc(_rp.x + cell * 0.4, _rp.y - cell * 0.4, cell * 0.21, 0, 2 * Math.PI); ctx.fill();
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold ' + Math.max(10, cell * 0.27) + 'px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(String(_rm.n), _rp.x + cell * 0.4, _rp.y - cell * 0.4 + 1);
+                } else {
+                    const _col = (_rm.tier === 'slow') ? 'rgba(230, 184, 77, 0.95)' : ((_rm.tier === 'err') ? 'rgba(235, 130, 55, 0.95)' : 'rgba(232, 78, 60, 0.95)');
+                    ctx.fillStyle = _col;
+                    ctx.beginPath(); ctx.arc(_rp.x, _rp.y, cell * 0.17, 0, 2 * Math.PI); ctx.fill();
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                    ctx.lineWidth = 1.2;
+                    ctx.beginPath(); ctx.arc(_rp.x, _rp.y, cell * 0.17, 0, 2 * Math.PI); ctx.stroke();
+                }
+                ctx.restore();
+            }
+        } catch (e) {}
+    }
+    /* 📋 v51 复盘：灵拙建议点（绿色双环小点） */
+    if (reviewSug && reviewSug.length) {
+        try {
+            for (let _si = 0; _si < reviewSug.length; _si++) {
+                const _sm = reviewSug[_si];
+                const _sp = toPixel(_sm.row, _sm.col);
+                ctx.save();
+                ctx.strokeStyle = 'rgba(46, 168, 100, 0.95)';
+                ctx.lineWidth = 2.4;
+                ctx.beginPath(); ctx.arc(_sp.x, _sp.y, cell * 0.28, 0, 2 * Math.PI); ctx.stroke();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+                ctx.lineWidth = 1.2;
+                ctx.beginPath(); ctx.arc(_sp.x, _sp.y, cell * 0.36, 0, 2 * Math.PI); ctx.stroke();
+                ctx.fillStyle = 'rgba(46, 168, 100, 0.9)';
+                ctx.beginPath(); ctx.arc(_sp.x, _sp.y, cell * 0.1, 0, 2 * Math.PI); ctx.fill();
                 ctx.restore();
             }
         } catch (e) {}
@@ -5859,7 +5888,8 @@ var COACH = (function () {
     const COL_LETTERS = 'ABCDEFGHIJKLMNOPQRS';
     const ASK_MS = 1800;         /* 单步提示预算 */
     const REVIEW_MS = 1400;      /* 复盘每手预算 */
-    const LOSS_FLAG_MIN = 250;   /* 恶手标记门槛（低于此视为小误差） */
+    const LOSS_FLAG_MIN = 250;   /* 标记门槛（缓手及以上） */
+    const LOSS_ERR_MIN = 800;    /* 恶手门槛 */
     /* 视角标定：true = Rapfi 评分以「行棋方」视角（待实战标定后固化） */
     const EV_SIDE_TO_MOVE = true;
     let inkBusy = false, inkToken = 0;
@@ -5892,7 +5922,7 @@ var COACH = (function () {
                 'coach.report.head': '📋 ── 复盘报告（灵拙 · NNUE 快速分析）──',
                 'coach.report.line1': '  共分析 {n} 手你的落子；与灵拙首选完全相同 {k} 手',
                 'coach.report.clean': '  未发现明显恶手（其余手与灵拙判断一致或仅有小误差）',
-                'coach.report.item': '  {mk} 第 {i} 手：你下 {pos}（{r},{c}）；灵拙首选 {bpos}（{br},{bc}）——它能{why}。{loss}　※棋盘已标 {mk}',
+                'coach.report.item': '  {mk} 第 {i} 手：你下 {pos}（{r},{c}）；灵拙首选 {bpos}（{br},{bc}）——它能{why}。{loss}{extra}',
                 'coach.report.blunder': '（严重失误）',
                 'coach.report.loss': '估算损失约 {x}',
                 'coach.report.small': '  另有 {n} 手小误差（未达标记门槛）',
@@ -5914,11 +5944,27 @@ var COACH = (function () {
                 'coach.why.generic2': '占据要点',
                 'coach.reviewTitle': '终局后：灵拙帮你找出本局最值得回看的几手',
                 'coach.reviewTitleRun': '点击停止复盘',
-                'coach.report.foulItem': '  {mk} 第 {i} 手：你下 {pos}（{r},{c}）——这是黑方禁手「{type}」，依规则直接判负　※棋盘已标 {mk}',
+                'coach.report.foulItem': '  {mk} 第 {i} 手：你下 {pos}（{r},{c}）——这是黑方禁手「{type}」，依规则直接判负',
                 'coach.foul.long': '长连',
                 'coach.foul.44': '四四',
                 'coach.foul.33': '三三',
-                'coach.foul.other': '禁手'
+                'coach.foul.other': '禁手',
+                'coach.report.head2': '📋 ── 复盘报告（灵拙 · NNUE 全谱分析）──',
+                'coach.report.stat': '总评：准确率 {acc}%（妙手 {br} · 好棋 {gd} · 稳手 {st} · 缓手 {sl} · 恶手 {er} · 败着 {bl}）',
+                'coach.report.curve': '📈 形势曲线（你方视角，左→右为进程）：',
+                'coach.report.turnpt': '   ▼ 转折点：第 {i} 手（估算亏损约 {x}）',
+                'coach.report.key': '── 关键手 ──',
+                'coach.report.fullhead': '── 全谱逐手 ──',
+                'coach.report.legend': '（红圈=关键手 · 绿点=灵拙建议 · 黄点=缓手 · 橙点=恶手）',
+                'coach.report.extra': '；这步之后对方取得了{list}',
+                'coach.report.lossShort': ' · 损失≈{x}',
+                'coach.full.ok': '  {i}. {sym} {pos}　{g}',
+                'coach.full.bad': '  {i}. {sym} {pos}　{g}{loss} · 灵拙建议 {bpos}',
+                'coach.full.foul': '  {i}. ✗ {pos}　{g}（{type}）',
+                'coach.g.br': '妙手', 'coach.g.gd': '好棋', 'coach.g.st': '稳手', 'coach.g.sl': '缓手', 'coach.g.er': '恶手', 'coach.g.bl': '败着',
+                'coach.th.open4': '活四', 'coach.th.four': '冲四', 'coach.th.open3': '活三',
+                'coach.done.some2': '📋 复盘完成：准确率 {acc}% · 关键手 {n} 处（红圈 + 绿点建议 已标）',
+                'coach.done.none2': '📋 复盘完成：准确率 {acc}% —— 没有明显恶手，下得很稳 👏'
             },
             en: {
                 'coach.thinking': '💡 Lingzhuo is thinking… (first use downloads engine assets, one moment)',
@@ -5944,7 +5990,7 @@ var COACH = (function () {
                 'coach.report.head': '📋 ── Review report (Lingzhuo · NNUE quick analysis) ──',
                 'coach.report.line1': '  Analyzed {n} of your moves; {k} matched Lingzhuo top choice exactly',
                 'coach.report.clean': '  No clear blunders found (other moves match or are close)',
-                'coach.report.item': '  {mk} Move #{i}: played {pos} ({r},{c}); Lingzhuo preferred {bpos} ({br},{bc}) — {why}. {loss}　※board marked {mk}',
+                'coach.report.item': '  {mk} Move #{i}: played {pos} ({r},{c}); Lingzhuo preferred {bpos} ({br},{bc}) — {why}. {loss}{extra}',
                 'coach.report.blunder': 'Blunder',
                 'coach.report.loss': 'estimated loss ≈ {x}',
                 'coach.report.small': '  Plus {n} minor inaccuracies (below threshold)',
@@ -5966,11 +6012,27 @@ var COACH = (function () {
                 'coach.why.generic2': 'claims a key point',
                 'coach.reviewTitle': 'After the game: Lingzhuo finds moves worth revisiting',
                 'coach.reviewTitleRun': 'Click to stop the review',
-                'coach.report.foulItem': '  {mk} Move #{i}: played {pos} ({r},{c}) — forbidden move “{type}” under Renju rules — instant loss　※board marked {mk}',
+                'coach.report.foulItem': '  {mk} Move #{i}: played {pos} ({r},{c}) — forbidden move “{type}” under Renju rules — instant loss',
                 'coach.foul.long': 'overline (6+)',
                 'coach.foul.44': 'double-four',
                 'coach.foul.33': 'double-three',
-                'coach.foul.other': 'forbidden move'
+                'coach.foul.other': 'forbidden move',
+                'coach.report.head2': '📋 ── Review report (Lingzhuo · NNUE full-game analysis) ──',
+                'coach.report.stat': 'Accuracy {acc}% (Brilliant {br} · Good {gd} · Steady {st} · Inaccuracy {sl} · Mistake {er} · Blunder {bl})',
+                'coach.report.curve': '📈 Momentum (your side, left→right): ',
+                'coach.report.turnpt': '   ▼ Turning point: move #{i} (est. loss ≈ {x})',
+                'coach.report.key': '── Key moments ──',
+                'coach.report.fullhead': '── Move by move ──',
+                'coach.report.legend': '(red ring = key moment · green dot = Lingzhuo suggestion · amber = inaccuracy · orange = mistake)',
+                'coach.report.extra': '; afterwards your opponent gained {list}',
+                'coach.report.lossShort': ' · loss≈{x}',
+                'coach.full.ok': '  {i}. {sym} {pos}　{g}',
+                'coach.full.bad': '  {i}. {sym} {pos}　{g}{loss} · try {bpos}',
+                'coach.full.foul': '  {i}. ✗ {pos}　{g} ({type})',
+                'coach.g.br': 'Brilliant', 'coach.g.gd': 'Good', 'coach.g.st': 'Steady', 'coach.g.sl': 'Inaccuracy', 'coach.g.er': 'Mistake', 'coach.g.bl': 'Blunder',
+                'coach.th.open4': 'an open four', 'coach.th.four': 'a four threat', 'coach.th.open3': 'an open three',
+                'coach.done.some2': '📋 Review done: accuracy {acc}% · {n} key moments (red rings + green dots marked)',
+                'coach.done.none2': '📋 Review done: accuracy {acc}% — no clear blunders, well played! 👏'
             }
         });
     } catch (e) {}
@@ -6055,6 +6117,18 @@ var COACH = (function () {
             else if (cnt === 3) { if (oL && oR) out.open3++; }
         }
         return out;
+    }
+    /* 落子后对手新获得的威胁（复盘讲解"这步之后对方取得了…"） */
+    function oppGain(posB, afterB) {
+        try {
+            const b0 = scanThreats(posB, aiColor);
+            const b1 = scanThreats(afterB, aiColor);
+            const g = [];
+            if (b1.open4 > b0.open4) g.push('coach.th.open4');
+            if (b1.four > b0.four) g.push('coach.th.four');
+            if (b1.open3 > b0.open3) g.push('coach.th.open3');
+            return g;
+        } catch (e) { return []; }
     }
     /* 立即成五点（禁手模式下黑方禁手点不算作连五胜点——长连/四四/三三） */
     function legalWins(brd, color) {
@@ -6190,6 +6264,7 @@ var COACH = (function () {
         reviewToken++; reviewRunning = false;
         coachHint = null;
         reviewMarks = null;
+        reviewSug = null;
         barHide();
         try { sync(); } catch (e) {}
     }
@@ -6205,48 +6280,111 @@ var COACH = (function () {
         reviewRunning = true;
         const t = ++reviewToken;
         reviewMarks = null;
+        reviewSug = null;
         drawBoard();
         bar(T('coach.review.progress', { k: 0, n: idxs.length }));
         sync();
         try { LOG.add(T('coach.review.startLog', { n: idxs.length, s: (REVIEW_MS / 1000) })); } catch (e) {}
-        const flagged = [];
-        let okCnt = 0, done = 0;
+        const flagged = [];   /* v51：全谱记录（每手一条） */
+        let done = 0;
         function finish() {
             reviewRunning = false;
-            const scored = flagged.filter(function (f) { return f.loss != null; });
+            reviewMarks = null;
+            reviewSug = null;
+            /* —— 逐手评级 —— */
+            function gradeOf(f) {
+                if (f.foul || (f.loss != null && f.loss >= 50000)) return 'coach.g.bl';
+                if (f.match) {
+                    const v = evalNum(f.ev1);
+                    return (v != null && v >= 5000) ? 'coach.g.br' : 'coach.g.gd';
+                }
+                if (f.loss == null) return 'coach.g.st';
+                if (f.loss < LOSS_FLAG_MIN) return 'coach.g.st';
+                if (f.loss < LOSS_ERR_MIN) return 'coach.g.sl';
+                return 'coach.g.er';
+            }
+            flagged.sort(function (a, b) { return a.i - b.i; });
+            const cnt = { br: 0, gd: 0, st: 0, sl: 0, er: 0, bl: 0 };
+            const gkCnt = { 'coach.g.br': 'br', 'coach.g.gd': 'gd', 'coach.g.st': 'st', 'coach.g.sl': 'sl', 'coach.g.er': 'er', 'coach.g.bl': 'bl' };
+            for (let f2 = 0; f2 < flagged.length; f2++) {
+                const gk = gradeOf(flagged[f2]);
+                flagged[f2].gk = gk;
+                cnt[gkCnt[gk]]++;
+            }
+            const total = flagged.length;
+            const acc = total ? Math.round(100 * (cnt.br + cnt.gd + cnt.st) / total) : 0;
+            /* —— 形势曲线（你方视角；缺失样本沿用前值）—— */
+            const LV = '▁▂▃▄▅▆▇█';
+            const spark = [];
+            let cur = 0, started = false;
+            for (let f2 = 0; f2 < flagged.length; f2++) {
+                const f = flagged[f2];
+                let vB = evalNum(f.ev1);
+                if (f.special === 'missWin') vB = 4000;
+                if (vB == null) vB = started ? cur : 0;
+                let vA = vB;
+                if (!f.match) {
+                    const v2 = evalNum(f.ev2);
+                    if (v2 != null) vA = -v2;
+                    else if (f.special === 'missBlock' || (f.loss != null && f.loss >= 50000)) vA = vB - 4000;
+                }
+                cur = vA; started = true;
+                spark.push(LV[Math.max(0, Math.min(7, Math.round((Math.max(-4000, Math.min(4000, vB)) + 4000) / 8000 * 7)))]);
+                spark.push(LV[Math.max(0, Math.min(7, Math.round((Math.max(-4000, Math.min(4000, vA)) + 4000) / 8000 * 7)))]);
+            }
+            /* —— 关键手（损失最大，最多 3 处）—— */
+            const scored = flagged.filter(function (f) { return f.loss != null && f.loss >= LOSS_FLAG_MIN; });
             scored.sort(function (a, b) { return b.loss - a.loss; });
-            const strong = scored.filter(function (f) { return f.loss >= LOSS_FLAG_MIN; });
-            const top = strong.slice(0, 3);
+            const top = scored.slice(0, 3);
             const marks = ['①', '②', '③'];
-            const lines = [T('coach.report.head')];
-            lines.push(T('coach.report.line1', { n: done, k: okCnt }));
+            const lines = [T('coach.report.head2')];
+            lines.push(T('coach.report.stat', { acc: acc, br: cnt.br, gd: cnt.gd, st: cnt.st, sl: cnt.sl, er: cnt.er, bl: cnt.bl }));
+            lines.push(T('coach.report.curve') + spark.join(''));
+            if (scored.length) lines.push(T('coach.report.turnpt', { i: scored[0].i + 1, x: Math.max(0, Math.round(scored[0].loss)) }));
             let barTxt;
             if (!top.length) {
-                barTxt = T('coach.done.none');
-                lines.push(T('coach.report.clean'));
+                barTxt = T('coach.done.none2', { acc: acc });
             } else {
-                const mk = [];
+                lines.push(T('coach.report.key'));
+                const mk = [], sug = [];
                 for (let k = 0; k < top.length; k++) {
                     const f = top[k];
                     mk.push({ row: f.played.row, col: f.played.col, n: k + 1 });
+                    if (f.best) sug.push({ row: f.best.row, col: f.best.col });
                     if (f.foul) {
                         lines.push(T('coach.report.foulItem', { mk: marks[k], i: f.i + 1, pos: posName(f.played.row, f.played.col), r: f.played.row, c: f.played.col, type: T(foulKey(f.foul)) }));
                         continue;
                     }
                     const why = whyText(reasonFor(boardFromBody(bodyOfMoves(moveHistory.slice(0, f.i))), f.best.row, f.best.col, humanColor, aiColor)).replace(/[。．.!！;；]+$/, '');
                     const lossTxt = (f.loss >= 50000) ? T('coach.report.blunder') : T('coach.report.loss', { x: Math.max(0, Math.round(f.loss)) });
+                    const extra = (f.gain && f.gain.length) ? T('coach.report.extra', { list: f.gain.map(function (g) { return T(g); }).join(T('coach.why.join')) }) : '';
                     lines.push(T('coach.report.item', {
                         mk: marks[k], i: f.i + 1,
                         pos: posName(f.played.row, f.played.col), r: f.played.row, c: f.played.col,
                         bpos: posName(f.best.row, f.best.col), br: f.best.row, bc: f.best.col,
-                        why: why, loss: lossTxt
+                        why: why, loss: lossTxt, extra: extra
                     }));
                 }
-                const small = scored.length - strong.length;
-                if (small > 0) lines.push(T('coach.report.small', { n: small }));
-                barTxt = T('coach.done.some', { n: top.length, mk: marks.slice(0, top.length).join('') });
                 reviewMarks = mk;
+                reviewSug = sug;
+                barTxt = T('coach.done.some2', { acc: acc, n: top.length });
             }
+            /* —— 全谱逐手 —— */
+            lines.push(T('coach.report.fullhead'));
+            for (let f2 = 0; f2 < flagged.length; f2++) {
+                const f = flagged[f2];
+                const sym = (f.gk === 'coach.g.br') ? '★' : ((f.gk === 'coach.g.sl') ? '△' : ((f.gk === 'coach.g.er') ? '▲' : ((f.gk === 'coach.g.bl') ? '✗' : '✓')));
+                const gName = T(f.gk);
+                if (f.foul) {
+                    lines.push(T('coach.full.foul', { i: f.i + 1, pos: posName(f.played.row, f.played.col), g: gName, type: T(foulKey(f.foul)) }));
+                } else if (f.loss != null && f.loss >= LOSS_FLAG_MIN) {
+                    const lossShort = (f.loss >= 50000) ? '' : T('coach.report.lossShort', { x: Math.max(0, Math.round(f.loss)) });
+                    lines.push(T('coach.full.bad', { i: f.i + 1, sym: sym, pos: posName(f.played.row, f.played.col), g: gName, loss: lossShort, bpos: f.best ? posName(f.best.row, f.best.col) : '—' }));
+                } else {
+                    lines.push(T('coach.full.ok', { i: f.i + 1, sym: sym, pos: posName(f.played.row, f.played.col), g: gName }));
+                }
+            }
+            lines.push(T('coach.report.legend'));
             lines.push(T('coach.report.foot'));
             try { LOG.block(lines); } catch (e) {}
             bar(barTxt);
@@ -6276,7 +6414,7 @@ var COACH = (function () {
             }
             if (meWins.length && !playedIsWin) {
                 /* 错过了立即连五的胜机 —— 引擎秒回不带评分，本地直接判严重失误 */
-                flagged.push({ i: i, played: played, best: { row: meWins[0].r, col: meWins[0].c }, loss: 99000 });
+                flagged.push({ i: i, played: played, best: { row: meWins[0].r, col: meWins[0].c }, loss: 99000, special: 'missWin' });
                 done++;
                 return step();
             }
@@ -6286,14 +6424,14 @@ var COACH = (function () {
                 const best = r1 && r1.move;
                 const s1 = RAPFI.parseSummary((r1 && r1.logs) || []);
                 if (!best) { done++; return step(); }
-                if (best.row === played.row && best.col === played.col) { okCnt++; done++; return step(); }
+                if (best.row === played.row && best.col === played.col) { flagged.push({ i: i, played: played, best: best, loss: 0, match: true, ev1: s1.ev }); done++; return step(); }
                 const afterBody = before + (before ? ' ' : '') + played.row + ',' + played.col + ',' + (played.player === BLACK ? 1 : 2);
                 const afterB = boardFromBody(afterBody);
                 const oppBefore = legalWins(posB, aiColor);
                 const oppAfter = legalWins(afterB, aiColor);
                 if (oppAfter.length && !oppBefore.length) {
                     /* 让对手拿到了下一步连五 —— 漏防（本地判定） */
-                    flagged.push({ i: i, played: played, best: best, loss: 88000 });
+                    flagged.push({ i: i, played: played, best: best, loss: 88000, special: 'missBlock', ev1: s1.ev, gain: oppGain(posB, afterB) });
                     done++;
                     return step();
                 }
@@ -6302,12 +6440,12 @@ var COACH = (function () {
                     const s2 = RAPFI.parseSummary((r2 && r2.logs) || []);
                     let loss = lossOf(s1.ev, s2.ev, humanColor);
                     if (loss == null && oppAfter.length) loss = 88000;
-                    flagged.push({ i: i, played: played, best: best, loss: loss });
+                    flagged.push({ i: i, played: played, best: best, loss: loss, ev1: s1.ev, ev2: s2.ev, gain: oppGain(posB, afterB) });
                     done++;
                     step();
                 }, function () {
                     if (t !== reviewToken) return;
-                    flagged.push({ i: i, played: played, best: best, loss: oppAfter.length ? 88000 : null });
+                    flagged.push({ i: i, played: played, best: best, loss: oppAfter.length ? 88000 : null, ev1: s1.ev, gain: oppGain(posB, afterB) });
                     done++;
                     step();
                 });
