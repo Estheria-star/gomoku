@@ -458,7 +458,7 @@ I18N.phrase({"在线五子棋 · AI 学习反制版 · 免费即玩 · 星恬": 
 /* ---- 数字/日期拼接规则 ---- */
 I18N.rules([["^你的回合 \\(⚫黑\\)$", "Your turn (⚫ Black)"], ["^你的回合 \\(⚪白\\)$", "Your turn (⚪ White)"], ["^🤖 AI 思考中\\.\\.\\. \\(⚫黑\\)$", "🤖 AI thinking... (⚫ Black)"], ["^🤖 AI 思考中\\.\\.\\. \\(⚪白\\)$", "🤖 AI thinking... (⚪ White)"], ["^🏆 成就 (\\d+)/(\\d+)$", "🏆 Achievements $1/$2"], ["^⚡ 热度学习: (\\d+) 手 \\(≥(\\d+)手激活\\)$", "⚡ Heat learning: $1 moves (activates at ≥$2)"], ["^📚 \\[简单\\] (\\d+)局 \\| AI (\\d+)胜 (\\d+)负 (\\d+)平 \\| 败因 (\\d+)$", "📚 [Easy] $1 games | AI $2W $3L $4D | causes $5"], ["^📚 \\[中等\\] (\\d+)局 \\| AI (\\d+)胜 (\\d+)负 (\\d+)平 \\| 败因 (\\d+)$", "📚 [Medium] $1 games | AI $2W $3L $4D | causes $5"], ["^📚 \\[困难\\] (\\d+)局 \\| AI (\\d+)胜 (\\d+)负 (\\d+)平 \\| 败因 (\\d+)$", "📚 [Hard] $1 games | AI $2W $3L $4D | causes $5"], ["^📚 \\[灵拙\\] (\\d+)局 \\| AI (\\d+)胜 (\\d+)负 (\\d+)平 \\| 败因 (\\d+)$", "📚 [Lingzhuo] $1 games | AI $2W $3L $4D | causes $5"]]);
 I18N.rules([["^· 多线程引擎已启动（(.+) 线程并行 · 128MB 哈希表）$", "· Multi-thread engine started ($1 threads, 128MB hash)"],["^· 多线程引擎已启动（(.+) 线程并行）$", "· Multi-thread engine started ($1 threads)"],["^· 多线程已自动点亮（跨源隔离生效 · (.+) 线程）$", "· Multi-thread auto-enabled (cross-origin isolated · $1 threads)"],["^· 后台服务注册失败（多线程暂不可用，单线程照常）：(.+)$", "· Background service registration failed (multi-thread unavailable): $1"],["^多线程 ✓ (\\d+) 线程$", "Multi-thread ✓ $1 threads"],["^检测到跨源隔离已生效（(\\d+) 核可用）：点击启用多线程，困难与灵拙多核搜索、更强更快。$", "Cross-origin isolation is active ($1 cores): enable multi-thread for stronger, faster Hard & Lingzhuo."],["^多线程已启用（跨源隔离生效 · (\\d+) 线程）。困难与灵拙均使用多核搜索。(.*)$", "Multi-thread on (cross-origin isolated · $1 threads). Hard & Lingzhuo both search on multiple cores.$2"],["^（注：(\\d+) 线程超过物理核数 (\\d+)，收益递减）$", " (note: $1 threads exceed $2 physical cores, diminishing returns)"]]);
-I18N.phrase({"单线程（隔离就绪）": "Single-thread (isolation ready)","单线程（启用中…）": "Single-thread (enabling…)","单线程（可升级）": "Single-thread (upgradable)","单线程": "Single-thread","🔧 关闭多线程（回到单线程）": "🔧 Disable multi-thread (back to single)","🔄 点我完成启用（刷新）": "🔄 Click to finish enabling (reload)","当前环境不支持多线程": "Multi-thread unavailable here","多线程启用流程尚未生效：点上方按钮刷新一次即可完成（若反复出现，请检查浏览器是否禁用了站点后台服务）。": "Enabling isn't complete yet: click the button above to reload once (if it repeats, check whether your browser disabled the site's background service).","当前环境不支持多线程加速（需要 HTTPS + Service Worker）。灵拙以单线程模式运行，功能完整。": "Multi-thread boost isn't supported here (needs HTTPS + Service Worker). Lingzhuo runs single-threaded with full features.","单线程（此浏览器不支持）": "Single-thread (unsupported browser)","这个浏览器不支持跨源隔离（COEP credentialless），多线程开不起来；灵拙以单线程运行，功能完整。用 Edge / Chrome 可解锁多核。": "This browser doesn't support cross-origin isolation (COEP credentialless), so multi-thread can't start; Lingzhuo runs single-threaded with full features. Edge / Chrome can unlock multi-core."});
+I18N.phrase({"单线程（隔离就绪）": "Single-thread (isolation ready)","单线程（启用中…）": "Single-thread (enabling…)","单线程（可升级）": "Single-thread (upgradable)","单线程": "Single-thread","🔧 关闭多线程（回到单线程）": "🔧 Disable multi-thread (back to single)","🔄 点我完成启用（刷新）": "🔄 Click to finish enabling (reload)","当前环境不支持多线程": "Multi-thread unavailable here","多线程启用流程尚未生效：点上方按钮刷新一次即可完成（若反复出现，请检查浏览器是否禁用了站点后台服务）。": "Enabling isn't complete yet: click the button above to reload once (if it repeats, check whether your browser disabled the site's background service).","当前环境不支持多线程加速（需要 HTTPS + Service Worker）。灵拙以单线程模式运行，功能完整。": "Multi-thread boost isn't supported here (needs HTTPS + Service Worker). Lingzhuo runs single-threaded with full features.","📈 棋力曲线": "📈 Skill curve","棋力成长": "Skill growth","清空曲线": "Clear curve","还没有记录：下完一局后点「📋 复盘」，这局的准确率就会记进曲线。": "No data yet — finish a game, then tap 📋 Review; that game's accuracy lands here.","单线程（此浏览器不支持）": "Single-thread (unsupported browser)","这个浏览器不支持跨源隔离（COEP credentialless），多线程开不起来；灵拙以单线程运行，功能完整。用 Edge / Chrome 可解锁多核。": "This browser doesn't support cross-origin isolation (COEP credentialless), so multi-thread can't start; Lingzhuo runs single-threaded with full features. Edge / Chrome can unlock multi-core."});
 I18N.auto();
 /* ==== i18n-kit v1.2 end ==== */
 </script>
@@ -729,6 +729,15 @@ I18N.auto();
         }
         /* —— 加载引导（v27）—— */
         .canvas-wrap { position: relative; }
+        /* v57：开局定式提示条（浮在棋盘左上角，不占布局，9 秒后淡出） */
+        .open-chip { position: absolute; left: 10px; top: 30px; z-index: 6; max-width: calc(100% - 20px);
+            background: rgba(255,255,255,.94); border: 1px solid #cfe4fa; border-radius: 14px;
+            box-shadow: 0 8px 22px rgba(60,100,150,.18); padding: 8px 12px; pointer-events: none;
+            font: 700 12.5px/1.5 system-ui, sans-serif; color: #33556f;
+            opacity: 0; transform: translateY(-6px); transition: opacity .35s ease, transform .35s ease; }
+        .open-chip.show { opacity: 1; transform: none; }
+        .open-chip b { color: #2b6fa8; font-size: 13.5px; }
+        .open-chip span { display: block; color: #5f7f9b; font-weight: 600; margin-top: 2px; }
         .boot-ov {
             position: absolute; inset: 0; z-index: 6;
             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
@@ -1028,6 +1037,7 @@ I18N.auto();
             </div>
             <div class="difficulty-row">
                 <button class="difficulty-btn" id="recOpenBtn" type="button" style="flex:1;">📜 打开棋谱库</button>
+                <button class="difficulty-btn" id="skillOpenBtn" type="button" style="flex:1;">📈 棋力曲线</button>
             </div>
         </div>
         <div class="control-group" id="grpPuzzle">
@@ -3340,6 +3350,7 @@ function placeStone(row, col, player) {
     currentPlayer = otherColor(player);
     drawBoard();
     updateStatus();
+    try { if (window.OPENING) OPENING.check(); } catch (e) {}   /* v57：开局定式提示 */
     if (currentPlayer === aiColor) scheduleAITurn();
     else { try { LLM.onHumanTurn(); } catch (e) {} }
     return true;
@@ -5488,6 +5499,7 @@ function resetGame() {
       : ('════ 新对局 · ' + DIFF_NAME[difficulty] + ' · 你执' + (humanColor === BLACK ? '黑' : '白') + ' ════'));
     try { LLM.onNewGame(); } catch (e) {}
     try { COACH.reset(); } catch (e) {}
+    try { if (window.OPENING) OPENING.hide(); } catch (e) {}
     updateLearningDisplay();
     drawBoard();
     updateStatus();
@@ -5496,6 +5508,7 @@ function resetGame() {
 
 function undoMove() {
     try { COACH.reset(); } catch (e) {}
+    try { if (window.OPENING) OPENING.hide(); } catch (e) {}
     if (window.NET && NET.online()) { try { toast(I18N.tr("联机模式不能悔棋")); } catch (e) {} return; }
     try { RAPFI.cancel(); aiToken++; } catch (e) {}
     /* 清理分析残留的临时记录（防错位） */
@@ -6791,6 +6804,14 @@ var COACH = (function () {
             try { LOG.block(lines); } catch (e) {}
             lastDoneBar = barTxt;
             bar(barTxt);
+            /* v57：把本局复盘准确率写进棋力成长曲线（同一局只记一次） */
+            try {
+                if (window.SKILL) SKILL.push({
+                    acc: acc, n: humanRecs.length, w: (typeof winner === 'undefined' ? null : winner),
+                    h: humanColor, d: difficulty, s: SIZE, r: RULE_RENJU ? 1 : 0,
+                    k: 'g' + moveHistory.length + ':' + (typeof winner === 'undefined' ? 'x' : winner) + ':' + humanColor
+                });
+            } catch (e) {}
             drawBoard();
             sync();
         }
@@ -7416,6 +7437,262 @@ document.getElementById('logClearBtn').addEventListener('click', function () { L
 document.getElementById('reviewImgBtn').addEventListener('click', function () { try { COACH.exportReviewImage(); } catch (e) {} });
 document.getElementById('achBtn').addEventListener('click', function () { try { ACH.openPanel(); } catch (e) {} });
 document.getElementById('recOpenBtn').addEventListener('click', function () { try { RECORDS.openPanel(); } catch (e) {} });
+
+/* ==================== v57：棋力成长曲线 ==================== */
+var SKILL = (function () {
+    var KEY = 'gomoku_skill_v1';
+    var MAX = 200;
+    function load() { try { var a = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+    function persist(l) { try { localStorage.setItem(KEY, JSON.stringify(l)); } catch (e) {} }
+    function en() { try { return I18N.lang() === 'en'; } catch (e) { return false; } }
+    function push(o) {
+        try {
+            if (!o || !isFinite(o.acc)) return;
+            var l = load();
+            var key = (o.k == null) ? null : String(o.k);
+            var last = l[l.length - 1];
+            if (key && last && last.k === key) return;          /* 同一局复盘两次不重复记 */
+            l.push({
+                ts: Date.now(), k: key,
+                acc: Math.max(0, Math.min(100, Math.round(o.acc))),
+                n: o.n || 0, w: (o.w == null ? null : o.w), h: o.h, d: o.d, s: o.s, r: o.r ? 1 : 0
+            });
+            if (l.length > MAX) l = l.slice(-MAX);
+            persist(l);
+        } catch (e) {}
+    }
+    function stats() {
+        var l = load();
+        if (!l.length) return { n: 0 };
+        var avg = function (a) { var s = 0; for (var i = 0; i < a.length; i++) s += a[i].acc; return a.length ? s / a.length : 0; };
+        var recent = l.slice(-10), prev = l.slice(-20, -10);
+        var best = 0;
+        for (var i = 0; i < l.length; i++) if (l[i].acc > best) best = l[i].acc;
+        return {
+            n: l.length, best: best, avg: Math.round(avg(l)), last: l[l.length - 1].acc,
+            recent: Math.round(avg(recent)), prev: prev.length ? Math.round(avg(prev)) : null
+        };
+    }
+    function clear() { persist([]); }
+    function openPanel() {
+        var mask = document.getElementById('skMask');
+        if (!mask) {
+            mask = document.createElement('div');
+            mask.id = 'skMask'; mask.className = 'rec-mask';
+            mask.innerHTML = '<div class="rec-panel" style="max-width:560px">' +
+                '<h3><span id="skTitle">📈 棋力成长</span><button id="skClose">✕</button></h3>' +
+                '<div class="rec-note" id="skNote"></div>' +
+                '<div id="skStats" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"></div>' +
+                '<canvas id="skChart" style="width:100%;height:196px;display:block;border-radius:14px;background:#fff;border:1px solid #e0eefb;"></canvas>' +
+                '<div class="rec-note" id="skLegend" style="margin:10px 0 0"></div>' +
+                '<div style="display:flex;gap:8px;margin-top:12px;"><button id="skClear" style="flex:1;border:none;border-radius:12px;padding:9px;background:#fdecea;color:#b8433a;font-weight:800;cursor:pointer;">清空曲线</button></div>' +
+                '</div>';
+            document.body.appendChild(mask);
+            mask.addEventListener('click', function (e) { if (e.target === mask) close(); });
+            mask.querySelector('#skClose').addEventListener('click', close);
+            mask.querySelector('#skClear').addEventListener('click', function () {
+                if (window.confirm && !window.confirm(en() ? 'Clear the skill curve?' : '确定清空棋力曲线？（不可恢复）')) return;
+                clear(); render();
+            });
+        }
+        render();
+        mask.classList.add('show');
+    }
+    function close() { var m = document.getElementById('skMask'); if (m) m.classList.remove('show'); }
+    function render() {
+        var note = document.getElementById('skNote');
+        var box = document.getElementById('skStats');
+        var cv = document.getElementById('skChart');
+        if (!note || !box || !cv) return;
+        /* 语言相关文案每次重写（弹窗是复用的，切语言要跟着变） */
+        var tEl = document.getElementById('skTitle');
+        if (tEl) tEl.textContent = '📈 ' + (en() ? 'Skill growth' : '棋力成长');
+        var lgEl = document.getElementById('skLegend');
+        if (lgEl) lgEl.textContent = en()
+            ? 'Red = win · Green = loss · Gray = draw · each dot = one game\'s review accuracy (last 20)'
+            : '红点=胜 · 绿点=负 · 灰点=和 · 每个点 = 一局的复盘准确率（最近 20 局）';
+        var clEl = document.getElementById('skClear');
+        if (clEl) clEl.textContent = en() ? 'Clear curve' : '清空曲线';
+        var l = load();
+        var st = stats();
+        if (!st.n) {
+            note.textContent = en()
+                ? 'No data yet — finish a game, then tap 📋 Review; that accuracy lands here.'
+                : '还没有记录：下完一局后点「📋 复盘」，这局的准确率就会记进曲线。';
+            box.innerHTML = '';
+            var g0 = cv.getContext('2d');
+            if (g0) { g0.clearRect(0, 0, cv.width, cv.height); }
+            return;
+        }
+        var delta = (st.prev == null) ? null : (st.recent - st.prev);
+        note.textContent = (en() ? 'Games: ' : '共 ') + st.n + (en() ? ' · ' : ' 局 · ')
+            + (en() ? 'latest ' : '最近准确率 ') + st.last + '%'
+            + (en() ? ' · last-10 avg ' : ' · 近 10 局均值 ') + st.recent + '%'
+            + (delta == null ? '' : (en()
+                ? ' (' + (delta >= 0 ? '+' : '') + delta + ' vs previous 10)'
+                : '（比前 10 局 ' + (delta >= 0 ? '↑' : '↓') + Math.abs(delta) + '）'));
+        var chip = function (txt, col) {
+            return '<span style="background:' + col + ';color:#fff;border-radius:999px;padding:4px 11px;font:800 12px/1.5 system-ui,sans-serif;">' + txt + '</span>';
+        };
+        box.innerHTML = chip((en() ? 'Best ' : '最高 ') + st.best + '%', '#5cb885')
+            + chip((en() ? 'Avg ' : '平均 ') + st.avg + '%', '#8fb9e0')
+            + (delta == null ? '' : chip((delta >= 0 ? '▲ +' : '▼ ') + delta, delta >= 0 ? '#e08c4a' : '#c98a8a'));
+        draw(cv, l.slice(-20));
+    }
+    function draw(cv, data) {
+        var dpr = Math.min(2, window.devicePixelRatio || 1);
+        var cssW = cv.clientWidth || 480, cssH = cv.clientHeight || 196;
+        cv.width = Math.round(cssW * dpr); cv.height = Math.round(cssH * dpr);
+        var g = cv.getContext('2d');
+        if (!g) return;
+        g.setTransform(dpr, 0, 0, dpr, 0, 0);
+        g.clearRect(0, 0, cssW, cssH);
+        var padL = 32, padR = 12, padT = 14, padB = 22;
+        var w = cssW - padL - padR, h = cssH - padT - padB;
+        g.font = '700 10px system-ui, sans-serif';
+        g.textAlign = 'right'; g.textBaseline = 'middle';
+        for (var v = 0; v <= 100; v += 25) {
+            var y = padT + h - (v / 100) * h;
+            g.strokeStyle = (v === 0) ? '#dbe8f6' : '#eef5fd';
+            g.lineWidth = 1;
+            g.beginPath(); g.moveTo(padL, y + .5); g.lineTo(padL + w, y + .5); g.stroke();
+            g.fillStyle = '#9db4c9'; g.fillText(String(v), padL - 6, y);
+        }
+        if (!data.length) return;
+        var stepX = data.length > 1 ? w / (data.length - 1) : 0;
+        var pt = function (i, acc) { return [padL + (data.length > 1 ? i * stepX : w / 2), padT + h - (acc / 100) * h]; };
+        g.strokeStyle = '#7fb3e6'; g.lineWidth = 2; g.lineJoin = 'round';
+        g.beginPath();
+        for (var i = 0; i < data.length; i++) {
+            var p = pt(i, data[i].acc);
+            if (i === 0) g.moveTo(p[0], p[1]); else g.lineTo(p[0], p[1]);
+        }
+        g.stroke();
+        for (var j = 0; j < data.length; j++) {
+            var q = pt(j, data[j].acc);
+            var col = '#9aa7b8';
+            if (data[j].w != null && data[j].h != null) col = (data[j].w === data[j].h) ? '#d9534f' : '#7bc47f';
+            g.beginPath(); g.arc(q[0], q[1], 3.4, 0, Math.PI * 2);
+            g.fillStyle = col; g.fill();
+            g.strokeStyle = '#fff'; g.lineWidth = 1.4; g.stroke();
+        }
+        var st2 = stats();
+        if (st2.n) {
+            var ay = padT + h - (st2.avg / 100) * h;
+            g.setLineDash([5, 4]); g.strokeStyle = '#b9c6d8'; g.lineWidth = 1.2;
+            g.beginPath(); g.moveTo(padL, ay); g.lineTo(padL + w, ay); g.stroke();
+            g.setLineDash([]);
+        }
+    }
+    return { push: push, stats: stats, load: load, clear: clear, openPanel: openPanel, close: close };
+})();
+try { window.SKILL = SKILL; } catch (e) {}
+try { document.getElementById('skillOpenBtn').addEventListener('click', function () { try { SKILL.openPanel(); } catch (e) {} }); } catch (e) {}
+
+/* ==================== v57：开局定式提示（连珠 26 开局） ====================
+   坐标：以黑1为原点，(dRow, dCol) 向下/向右为正。
+   直指 = 白2 在 (-1,0)；斜指 = 白2 在 (-1,+1)。其余 6 个方向由 8 向对称归一化。 */
+var OPENING = (function () {
+    var DIRECT = {
+        '-2,0': ['寒星', 'Hanxing', '黑棋竖线活二，两头都能延，白棋要一起盯', 'Black makes a vertical open two; watch both ends'],
+        '-2,1': ['溪月', 'Xiyue', '黑棋斜线活二，进攻味道重，白棋早点压', 'Black makes a diagonal open two; press early'],
+        '-2,2': ['疏星', 'Shuxing', '黑棋斜跳二，局面均衡，双方从零开始', 'Black makes a jump two; balanced game'],
+        '-1,1': ['花月', 'Huayue', '直指最强开局，黑棋斜连活二，禁手规则下黑必胜', 'Strongest direct opening; a forced win in Renju'],
+        '-1,2': ['残月', 'Canyue', '黑棋斜线拉开两步，白棋可选择的路更多', 'Black splits two steps diagonally; White has more options'],
+        '0,1': ['雨月', 'Yuyue', '黑棋贴着横线成二，稳但不凶', 'Black forms a horizontal two; steady, not sharp'],
+        '0,2': ['金星', 'Jinxing', '黑棋横向拉开，下边空间大', 'Black spreads horizontally with space to build'],
+        '1,0': ['松月', 'Songyue', '黑棋往另一边竖线，平衡型', 'Black plays the opposite vertical; balanced'],
+        '1,1': ['丘月', 'Qiuyue', '黑棋斜线，与松月互为镜像', 'Diagonal shape, the mirror of Songyue'],
+        '1,2': ['新月', 'Xinyue', '黑棋斜拉两步，白棋要防外侧', 'Black stretches two diagonally; defend the outside'],
+        '2,0': ['瑞星', 'Ruixing', '黑棋竖线隔一格，空间更大', 'Black leaves a gap vertically; more space'],
+        '2,1': ['山月', 'Shanyue', '黑棋斜线大跨步，白棋有回旋余地', 'Big diagonal step; White keeps room to reply'],
+        '2,2': ['游星', 'Youxing', '黑棋斜线拉得最远，白棋应对最从容', 'The widest diagonal; easiest for White to answer']
+    };
+    var DIAG = {
+        '-2,2': ['长星', 'Changxing', '黑棋成斜线活二，两端都开，攻势直接', 'Black makes a diagonal open two, both ends open'],
+        '-1,2': ['峡月', 'Xiayue', '黑棋斜线紧贴，白棋不好压', 'Black hugs the diagonal; hard for White to press'],
+        '0,2': ['恒星', 'Hengxing', '黑棋横向活二，往边上发展', 'Black builds a horizontal open two toward the edge'],
+        '1,2': ['水月', 'Shuiyue', '黑棋斜线下压，走得稳', 'Black presses down the diagonal; steady'],
+        '2,2': ['流星', 'Liuxing', '黑棋斜线拉最远，白棋选择多', 'Farthest diagonal stretch; White has choices'],
+        '0,1': ['云月', 'Yunyue', '黑棋同排成二，横向延展', 'Black lines up horizontally; extend sideways'],
+        '1,1': ['浦月', 'Puyue', '斜指最强开局，与花月并称双璧，禁手规则下黑必胜', 'Strongest diagonal opening; a forced win in Renju'],
+        '2,1': ['岚月', 'Lanyue', '黑棋斜线大跨步，白棋要防外侧', 'Big diagonal step; White must cover the outside'],
+        '1,0': ['银月', 'Yinyue', '黑棋竖线贴身，走法直接', 'Black plays tight vertically; direct play'],
+        '2,0': ['明星', 'Mingxing', '黑棋竖线隔一格，空间大', 'Vertical with a gap; plenty of space'],
+        '1,-1': ['斜月', 'Xieyue', '黑棋反向斜线，重心偏一侧', 'Black mirrors the diagonal; the weight shifts to one side'],
+        '2,-1': ['名月', 'Mingyue', '黑棋反向斜线拉两步，变化多', 'Mirrored diagonal two steps out; many variations'],
+        '2,-2': ['彗星', 'Huixing', '黑棋反向斜线拉最远，白棋最舒服', 'Farthest mirrored diagonal; most comfortable for White']
+    };
+    var T8 = [
+        function (r, c) { return [r, c]; }, function (r, c) { return [c, -r]; },
+        function (r, c) { return [-r, -c]; }, function (r, c) { return [-c, r]; },
+        function (r, c) { return [-r, c]; }, function (r, c) { return [c, r]; },
+        function (r, c) { return [r, -c]; }, function (r, c) { return [-c, -r]; }
+    ];
+    var lastKey = '';
+    function en() { try { return I18N.lang() === 'en'; } catch (e) { return false; } }
+    function detect() {
+        try {
+            if (typeof moveHistory === 'undefined') return null;
+            var hs = moveHistory.filter(function (m) { return !m.__tmp; });
+            if (hs.length < 3) return null;
+            var b1 = hs[0], w2 = hs[1], b3 = hs[2];
+            if (b1.player !== BLACK || w2.player === BLACK || b3.player !== BLACK) return null;
+            var mid = (SIZE - 1) / 2;
+            if (Math.round(mid) !== mid) return null;
+            if (b1.row !== mid || b1.col !== mid) return null;
+            var wr = w2.row - b1.row, wc = w2.col - b1.col;
+            var br = b3.row - b1.row, bc = b3.col - b1.col;
+            /* 每个白2方向都有 2 个变换能映到标准位（旋转 + 沿该方向镜像），
+               必须把 8 个都试一遍取命中 —— 否则镜像局面（黑3 在左侧/下方）会识别不出来 */
+            for (var i = 0; i < 8; i++) {
+                var t = T8[i](wr, wc);
+                var table = null;
+                if (t[0] === -1 && t[1] === 0) table = DIRECT;
+                else if (t[0] === -1 && t[1] === 1) table = DIAG;
+                if (!table) continue;
+                var tb = T8[i](br, bc);
+                var hit = table[tb[0] + ',' + tb[1]];
+                if (hit) return { zh: hit[0], en: hit[1], desc: hit[2], enDesc: hit[3], kind: (table === DIRECT ? 'direct' : 'diag') };
+            }
+        } catch (e) {}
+        return null;
+    }
+    function chipEl() {
+        var el = document.getElementById('openChip');
+        if (el) return el;
+        var wrap = document.querySelector('.canvas-wrap');
+        if (!wrap) return null;
+        el = document.createElement('div');
+        el.id = 'openChip'; el.className = 'open-chip';
+        el.innerHTML = '<b></b><span></span>';
+        wrap.appendChild(el);
+        return el;
+    }
+    function check() {
+        var o = detect();
+        if (!o) return null;
+        if (o.zh === lastKey) return o;
+        lastKey = o.zh;
+        var isEn = en();
+        var kindZh = (o.kind === 'direct' ? '直指' : '斜指');
+        var name = isEn ? (o.en + ' · ' + o.zh) : o.zh;
+        var desc = isEn ? ((o.kind === 'direct' ? 'Direct opening — ' : 'Diagonal opening — ') + o.enDesc) : o.desc;
+        var el = chipEl();
+        if (el) {
+            el.querySelector('b').textContent = '📖 ' + name + (isEn ? '' : '（' + kindZh + '）');
+            el.querySelector('span').textContent = desc;
+            el.classList.add('show');
+            clearTimeout(el._t);
+            el._t = setTimeout(function () { el.classList.remove('show'); }, 9000);
+        }
+        try { LOG.add('📖 开局：' + name + (isEn ? '' : '（' + kindZh + '）') + ' —— ' + desc); } catch (e) {}
+        return o;
+    }
+    function hide() { var el = document.getElementById('openChip'); if (el) el.classList.remove('show'); lastKey = ''; }
+    return { check: check, hide: hide, detect: detect };
+})();
+try { window.OPENING = OPENING; } catch (e) {}
 document.getElementById('rpFirst').addEventListener('click', function () { try { REPLAY.jump(0); } catch (e) {} });
 document.getElementById('rpPrev').addEventListener('click', function () { try { REPLAY.step(-1); } catch (e) {} });
 document.getElementById('rpNext').addEventListener('click', function () { try { REPLAY.step(1); } catch (e) {} });
@@ -7710,6 +7987,19 @@ try { window.__gomokuTest = { declareDraw: declareDraw, findAnyEmptyCell: findAn
             if (typeof caches === 'undefined') return Promise.resolve(false);
             return caches.delete('gomoku-engine-assets-v1').catch(function () { return false; });
         }
+    },
+    skill: {
+        list: function () { try { return window.SKILL.load(); } catch (e) { return []; } },
+        stats: function () { try { return window.SKILL.stats(); } catch (e) { return null; } },
+        push: function (acc) { try { window.SKILL.push({ acc: acc, n: 10, h: 1, d: 3, s: 15, r: 1, k: 'test' + Date.now() + Math.random() }); return true; } catch (e) { return false; } },
+        open: function () { try { window.SKILL.openPanel(); return true; } catch (e) { return false; } },
+        clear: function () { try { window.SKILL.clear(); return true; } catch (e) { return false; } }
+    },
+    opening: {
+        detect: function () { try { return window.OPENING.detect(); } catch (e) { return null; } },
+        check: function () { try { return window.OPENING.check(); } catch (e) { return null; } },
+        hide: function () { try { window.OPENING.hide(); return true; } catch (e) { return false; } },
+        text: function () { var e2 = document.getElementById('openChip'); return e2 ? e2.innerText : ''; }
     },
     mt: {
         state: function () {
