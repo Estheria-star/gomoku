@@ -454,7 +454,7 @@ I18N.phrase({"在线五子棋 · AI 学习反制版 · 免费即玩 · 星恬": 
 "· 灵拙新一代引擎资源已就绪 ✓（Rapfi 0.43.02 · NNUE 加速）": "· Lingzhuo engine ready ✓ (Rapfi 0.43.02 · NNUE)",
 "· 单线程引擎已启动（64MB 哈希表）": "· Single-thread engine started (64MB hash)",
 "⚖ 规则切换：黑方禁手（连珠）": "⚖ Rule switched: Renju (Black fouls)","⚖ 规则切换：无禁手": "⚖ Rule switched: free-style",
-"XL Engine 攻击型 · 强度接近困难档（仅 15×15）": "XL Engine (attacking style) · close to Hard, 15×15 only","快速计算型 · 强于中等档（仅 15×15）": "Fast tactical engine · stronger than Medium, 15×15 only"});
+"XL Engine 攻击型 · 强度接近困难档（仅 15×15）": "XL Engine (attacking style) · close to Hard, 15×15 only","快速计算型 · 强于中等档（仅 15×15）": "Fast tactical engine · stronger than Medium, 15×15 only","棋谱库": "Game records","📜 打开棋谱库": "📜 Open records","分享链接已复制 ✓": "Link copied ✓","棋谱库是空的，下完一局就会自动存进来": "No records yet — finish a game and it will be saved here"});
 /* ---- 数字/日期拼接规则 ---- */
 I18N.rules([["^你的回合 \\(⚫黑\\)$", "Your turn (⚫ Black)"], ["^你的回合 \\(⚪白\\)$", "Your turn (⚪ White)"], ["^🤖 AI 思考中\\.\\.\\. \\(⚫黑\\)$", "🤖 AI thinking... (⚫ Black)"], ["^🤖 AI 思考中\\.\\.\\. \\(⚪白\\)$", "🤖 AI thinking... (⚪ White)"], ["^🏆 成就 (\\d+)/(\\d+)$", "🏆 Achievements $1/$2"], ["^⚡ 热度学习: (\\d+) 手 \\(≥(\\d+)手激活\\)$", "⚡ Heat learning: $1 moves (activates at ≥$2)"], ["^📚 \\[简单\\] (\\d+)局 \\| AI (\\d+)胜 (\\d+)负 (\\d+)平 \\| 败因 (\\d+)$", "📚 [Easy] $1 games | AI $2W $3L $4D | causes $5"], ["^📚 \\[中等\\] (\\d+)局 \\| AI (\\d+)胜 (\\d+)负 (\\d+)平 \\| 败因 (\\d+)$", "📚 [Medium] $1 games | AI $2W $3L $4D | causes $5"], ["^📚 \\[困难\\] (\\d+)局 \\| AI (\\d+)胜 (\\d+)负 (\\d+)平 \\| 败因 (\\d+)$", "📚 [Hard] $1 games | AI $2W $3L $4D | causes $5"], ["^📚 \\[灵拙\\] (\\d+)局 \\| AI (\\d+)胜 (\\d+)负 (\\d+)平 \\| 败因 (\\d+)$", "📚 [Lingzhuo] $1 games | AI $2W $3L $4D | causes $5"]]);
 I18N.rules([["^· 多线程引擎已启动（(.+) 线程并行 · 128MB 哈希表）$", "· Multi-thread engine started ($1 threads, 128MB hash)"],["^· 多线程引擎已启动（(.+) 线程并行）$", "· Multi-thread engine started ($1 threads)"]]);
@@ -782,6 +782,26 @@ I18N.auto();
         .ach-item .an { font-size: 12.5px; font-weight: 800; color: #5a4318; }
         .ach-item .ad { font-size: 10.5px; color: #9a8a66; margin-top: 2px; line-height: 1.5; }
         @media (max-width: 480px) { .ach-grid { grid-template-columns: 1fr; } }
+        /* —— 📜 v54 棋谱库 —— */
+        .rec-mask { position: fixed; inset: 0; z-index: 78; background: rgba(31,44,64,.38); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity .3s ease; }
+        .rec-mask.show { opacity: 1; pointer-events: auto; }
+        .rec-panel { width: 100%; max-width: 480px; max-height: 82vh; overflow-y: auto; background: #f7fbff; border-radius: 24px; padding: 20px; box-shadow: 0 30px 80px rgba(30,40,70,.4); transform: translateY(20px) scale(.98); transition: transform .35s cubic-bezier(.22,.9,.28,1); }
+        .rec-mask.show .rec-panel { transform: none; }
+        .rec-panel h3 { font-size: 17px; font-weight: 800; color: #25405c; display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .rec-panel h3 button { border: none; background: #e3eefb; border-radius: 10px; width: 30px; height: 30px; cursor: pointer; color: #4f7fa8; font-size: 14px; }
+        .rec-note { font-size: 11.5px; color: #6f93b4; margin-bottom: 12px; line-height: 1.6; }
+        .rec-item { display: flex; align-items: center; gap: 8px; background: #ffffff; border: 1px solid #e0eefb; border-radius: 14px; padding: 9px 10px; margin-bottom: 8px; }
+        .rec-item .ri-meta { flex: 1; min-width: 0; }
+        .rec-item .ri-t1 { font-size: 13px; font-weight: 800; color: #2c4a6b; }
+        .rec-item .ri-t2 { font-size: 11px; color: #6f93b4; margin-top: 1px; }
+        .rec-item .ri-btns { display: flex; gap: 5px; flex: 0 0 auto; }
+        .rec-item .ri-btns button { border: none; border-radius: 9px; padding: 6px 9px; font-size: 12px; cursor: pointer; font-weight: 700; background: #eaf6ff; color: #2c5f92; }
+        .rec-item .ri-btns button.del { background: #fdecea; color: #b8433a; }
+        .rec-empty { text-align: center; color: #6f93b4; font-size: 12.5px; padding: 22px 0; }
+        .replay-ctl { display: flex; gap: 6px; align-items: center; width: 100%; }
+        .replay-ctl .action-btn { flex: 0 0 auto; padding: 9px 12px; border-radius: 14px; }
+        .replay-ctl .rp-idx { flex: 1; text-align: center; font-weight: 800; color: #2c4a6b; font-size: 13px; background: #eaf6ff; border-radius: 12px; padding: 9px 6px; }
+        .replay-ctl .action-btn.rpx { background: #e29a98; box-shadow: 0 4px 0 #b87674; }
         /* —— 返回主页（全站统一 · v30）—— */
         .wb-home{position:fixed;left:14px;bottom:14px;z-index:9990;display:inline-flex;align-items:center;gap:5px;
           padding:8px 13px 8px 10px;border-radius:999px;text-decoration:none;
@@ -840,6 +860,14 @@ I18N.auto();
             <button class="action-btn reset" id="resetBtn">⟳ 新游戏</button>
             <button class="action-btn coach" id="coachBtn" title="灵拙帮你看看这一步怎么下">💡 问灵拙</button>
             <button class="action-btn review" id="reviewBtn" style="display:none" title="终局后：灵拙帮你找出本局最值得回看的几手">📋 复盘</button>
+            <div class="replay-ctl" id="replayCtl" style="display:none">
+                <button class="action-btn rp" id="rpFirst" title="回到开头">⏮</button>
+                <button class="action-btn rp" id="rpPrev" title="上一步">◀</button>
+                <span class="rp-idx" id="rpIdx">0 / 0</span>
+                <button class="action-btn rp" id="rpNext" title="下一步">▶</button>
+                <button class="action-btn rp" id="rpLast" title="跳到末尾">⏭</button>
+                <button class="action-btn rp rpx" id="rpExit" title="退出回放">✕</button>
+            </div>
         </div>
         <div class="coach-bar off" id="coachBar"></div>
         <div class="canvas-wrap"><canvas id="gobanCanvas" width="690" height="690"></canvas>
@@ -983,6 +1011,15 @@ I18N.auto();
             <div class="net-chatrow">
                 <input id="netChatInput" maxlength="80" placeholder="聊天…" autocomplete="off">
                 <button id="netChatSend" type="button">发送</button>
+            </div>
+        </div>
+        <div class="control-group" id="grpRecords">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700;">棋谱库</span>
+                <span class="learning-badge" id="recBadge" style="background:#8fb9e0;">0 局</span>
+            </div>
+            <div class="difficulty-row">
+                <button class="difficulty-btn" id="recOpenBtn" type="button" style="flex:1;">📜 打开棋谱库</button>
             </div>
         </div>
         <div class="status-box" id="statusMsg">你的回合 (黑棋)</div>
@@ -2819,6 +2856,7 @@ function recordGameEnd(winColor) {
     if (window.NET && NET.online()) { try { ACH.onGameEnd(winColor); } catch (e) {} return; }   /* 联机对局：不计入 AI 学习与本地战绩 */
     try { ACH.onGameEnd(winColor); } catch (e) {}
     try { COACH.onGameEnd(winColor); } catch (e) {}
+    try { RECORDS.save({ size: SIZE, rule: RULE_RENJU, diff: difficulty, human: humanColor, winner: winColor, foul: winFoul }); } catch (e) {}
     const b = MB();
     b.played++;
     if (winColor === null) b.draws++;
@@ -2937,6 +2975,7 @@ function studyStatusText() {
 
 function updateStatus() {
     try { COACH.sync(); } catch (e) {}
+    if (window.REPLAY && REPLAY.active()) { try { statusMsg.innerText = REPLAY.statusText(); return; } catch (e) {} }
     if (studyModeOn) { statusMsg.innerText = studyStatusText(); return; }
     if (window.NET && NET.online()) { try { NET.updateStatus(); return; } catch (e) {} }
     if (gameOver) {
@@ -2951,9 +2990,11 @@ function updateStatus() {
 }
 
 function drawBoard() {
-    try { if (!studyModeOn && !reviewView) refreshFoul2(); } catch (e) {}
-    var __rvSaved = reviewView ? board : null;
-    if (reviewView) board = reviewView.board;
+    var __rp = (window.REPLAY && REPLAY.active());
+    try { if (!studyModeOn && !reviewView && !__rp) refreshFoul2(); } catch (e) {}
+    var __rvSaved = null, __szSaved = null;
+    if (reviewView) { __rvSaved = board; board = reviewView.board; }
+    else if (__rp) { __rvSaved = board; __szSaved = SIZE; SIZE = REPLAY.size(); board = REPLAY.board(); }
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
     const grad = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, W * 0.7);
@@ -3035,7 +3076,7 @@ function drawBoard() {
             ctx.stroke();
         }
     }
-    if (!studyModeOn && !reviewView && moveHistory.length > 0) {
+    if (!studyModeOn && !reviewView && !__rp && moveHistory.length > 0) {
         const last = moveHistory[moveHistory.length - 1];
         const p = toPixel(last.row, last.col);
         ctx.fillStyle = '#e33';
@@ -3043,9 +3084,22 @@ function drawBoard() {
         ctx.arc(p.x, p.y, cell * 0.12, 0, 2 * Math.PI);
         ctx.fill();
     }
+    /* 📜 v54 回放：标记最后一手 */
+    if (__rp) {
+        try {
+            const _rl = REPLAY.lastMove();
+            if (_rl) {
+                const _rpz = toPixel(_rl.row, _rl.col);
+                ctx.fillStyle = '#e33';
+                ctx.beginPath();
+                ctx.arc(_rpz.x, _rpz.y, cell * 0.12, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        } catch (e) {}
+    }
     // 热度提示（学习激活且轮到 AI 时轻量显示不需要）
     /* 🏆 胜利连线（叠画在最上层） */
-    if (!reviewView && window.__winline && window.__winline.active()) {
+    if (!reviewView && !__rp && window.__winline && window.__winline.active()) {
         try { window.__winline.draw(ctx, toPixel, cell); } catch (e) {}
     }
     /* 🔮 推理模式：推荐落点标记（金色双环 + 十字） */
@@ -3069,7 +3123,7 @@ function drawBoard() {
         } catch (e) {}
     }
     /* 💡 v50 灵拙教练：本步提示标记（紫色双环 + 中心点） */
-    if (!studyModeOn && !reviewView && coachHint) {
+    if (!studyModeOn && !reviewView && !__rp && coachHint) {
         try {
             const _cp = toPixel(coachHint.row, coachHint.col);
             ctx.save();
@@ -3085,7 +3139,7 @@ function drawBoard() {
         } catch (e) {}
     }
     /* 📋 v50/v51 复盘标记：关键手（红环+序号）/ 其他失误（彩色小点）/ 灵拙建议（绿点） */
-    if (!reviewView && reviewMarks && reviewMarks.length) {
+    if (!reviewView && !__rp && reviewMarks && reviewMarks.length) {
         try {
             for (let _ri = 0; _ri < reviewMarks.length; _ri++) {
                 const _rm = reviewMarks[_ri];
@@ -3115,7 +3169,7 @@ function drawBoard() {
         } catch (e) {}
     }
     /* 📋 v51 复盘：灵拙建议点（绿色双环小点） */
-    if (!reviewView && reviewSug && reviewSug.length) {
+    if (!reviewView && !__rp && reviewSug && reviewSug.length) {
         try {
             for (let _si = 0; _si < reviewSug.length; _si++) {
                 const _sm = reviewSug[_si];
@@ -3156,6 +3210,7 @@ function drawBoard() {
         } catch (e) {}
     }
     if (__rvSaved) board = __rvSaved;
+    if (__szSaved != null) SIZE = __szSaved;
 }
 
 // ---------- 流程 ----------
@@ -3175,6 +3230,7 @@ function declareDraw(reason) {
 
 function placeStone(row, col, player) {
     if (studyModeOn) return false;   /* 🔮 推理模式：不落子到对局 */
+    if (window.REPLAY && REPLAY.active()) return false;   /* 📜 回放浏览中：禁止落子 */
     if (gameOver) return false;
     if (!isOnBoard(row, col) || board[row][col] !== EMPTY) return false;
     /* 💡 v50：落子即清教练标记与提示条 */
@@ -5190,6 +5246,7 @@ const LLM = (function () {
 function handleCanvasClick(e) {
     if (studyModeOn) { studyBoardClick(e, false); return; }
     try { if (window.COACH && COACH.reviewClick && COACH.reviewClick(e, false)) return; } catch (er) {}
+    try { if (window.REPLAY && REPLAY.active()) { REPLAY.click(e, false); return; } } catch (er) {}
     if (gameOver || currentPlayer !== humanColor) return;
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
@@ -5209,6 +5266,7 @@ function handleCanvasClick(e) {
 function handleTouch(e) {
     if (studyModeOn) { e.preventDefault(); studyBoardClick(e, true); return; }
     try { if (window.COACH && COACH.reviewClick && COACH.reviewClick(e, true)) { e.preventDefault(); return; } } catch (er) {}
+    try { if (window.REPLAY && REPLAY.active()) { e.preventDefault(); REPLAY.click(e, true); return; } } catch (er) {}
     if (gameOver || currentPlayer !== humanColor) return;
     e.preventDefault();
     const touch = e.touches[0];
@@ -6189,7 +6247,7 @@ var COACH = (function () {
                 if (key !== lastAskTxt) { lastAskTxt = key; cb.textContent = (key === 'ink') ? '💡 思考中…' : '💡 问灵拙'; }
             }
             if (rb) {
-                const show = !online && gameOver;
+                const show = !online && gameOver && !(window.REPLAY && REPLAY.active());
                 rb.style.display = show ? '' : 'none';
                 const key2 = reviewRunning ? 'run' : 'idle';
                 if (key2 !== lastRevTxt) { lastRevTxt = key2; rb.textContent = (key2 === 'run') ? '📋 分析中…' : '📋 复盘'; }
@@ -6783,6 +6841,243 @@ var COACH = (function () {
         state: function () { return { inkBusy: inkBusy, reviewRunning: reviewRunning, hint: coachHint, marks: reviewMarks, view: reviewView ? { i: reviewView.i, played: reviewView.played, sugg: reviewView.sugg } : null }; } };
 })();
 
+/* ============================================================
+ * 📜 v54 棋谱库：自动存档（localStorage）+ 列表面板 + 分享链接
+ * ============================================================ */
+var RECORDS = (function () {
+    'use strict';
+    const KEY = 'gomoku_records_v1';
+    const MAX = 60;
+    function load() {
+        try { const a = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+    }
+    function persist(list) { try { localStorage.setItem(KEY, JSON.stringify(list)); } catch (e) {} }
+    function en() { try { return I18N.lang() === 'en'; } catch (e) { return false; } }
+    function copyText(t) {
+        try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(t); return true; } } catch (e) {}
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = t; document.body.appendChild(ta); ta.select();
+            document.execCommand('copy'); ta.remove(); return true;
+        } catch (e) { return false; }
+    }
+    function save(meta) {
+        try {
+            const moves = moveHistory.filter(function (m) { return !m.__tmp; }).map(function (m) { return m.row + ',' + m.col; }).join(';');
+            if (!moves) return;
+            const list = load();
+            list.unshift({
+                v: 1, ts: Date.now(), s: meta.size, r: meta.rule ? 1 : 0, d: meta.diff,
+                h: meta.human, w: meta.winner, f: meta.foul || null, n: moves.split(';').length, m: moves
+            });
+            if (list.length > MAX) list.length = MAX;
+            persist(list);
+            refreshBadge();
+        } catch (e) {}
+    }
+    function addRec(rec) {
+        try {
+            const list = load();
+            if (list.some(function (x) { return x.m === rec.m && x.w === rec.w && x.s === rec.s; })) return;
+            list.unshift(rec);
+            if (list.length > MAX) list.length = MAX;
+            persist(list);
+            refreshBadge();
+        } catch (e) {}
+    }
+    function refreshBadge() {
+        try { const b = document.getElementById('recBadge'); if (b) b.textContent = load().length + (en() ? '' : ' 局'); } catch (e) {}
+    }
+    function shareUrl(rec) {
+        const payload = { s: rec.s, r: rec.r, d: rec.d, h: rec.h, w: rec.w, f: rec.f || null, m: rec.m };
+        return location.origin + location.pathname + location.search + '#g=' + btoa(JSON.stringify(payload));
+    }
+    function rowOf(rec) {
+        const d = new Date(rec.ts);
+        const p2 = function (x) { return String(x).padStart(2, '0'); };
+        const dt = (d.getMonth() + 1) + '/' + d.getDate() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+        const diffName = (typeof DIFF_NAME !== 'undefined' && DIFF_NAME[rec.d]) ? I18N.tr(DIFF_NAME[rec.d]) : ('Lv' + rec.d);
+        const side = (rec.h === 1) ? (en() ? 'Black' : '黑') : (en() ? 'White' : '白');
+        let res;
+        if (rec.w == null) res = en() ? 'Draw' : '和';
+        else res = (rec.w === rec.h) ? (en() ? 'Win' : '胜') : (en() ? 'Loss' : '负');
+        const t1 = dt + ' · ' + diffName + ' · ' + (en() ? 'you play ' : '你执') + side + ' · ' + res;
+        const t2 = rec.s + '×' + rec.s + (rec.r ? (en() ? ' · Renju' : ' · 禁手') : '') + ' · ' + rec.n + (en() ? ' moves' : ' 手');
+        return { t1: t1, t2: t2 };
+    }
+    function openPanel() {
+        let mask = document.getElementById('recMask');
+        if (!mask) {
+            mask = document.createElement('div');
+            mask.id = 'recMask'; mask.className = 'rec-mask';
+            mask.innerHTML = '<div class="rec-panel"><h3><span>📜 棋谱库</span><button id="recClose">✕</button></h3>' +
+                '<div class="rec-note">每局结束自动存档（最多 ' + MAX + ' 局）。「▶ 看」回放全谱，🔗 复制分享链接。</div>' +
+                '<div id="recList"></div>' +
+                '<div style="display:flex;gap:8px;margin-top:4px;"><button id="recClear" style="flex:1;border:none;border-radius:12px;padding:9px;background:#fdecea;color:#b8433a;font-weight:800;cursor:pointer;">清空棋谱库</button></div></div>';
+            document.body.appendChild(mask);
+            mask.addEventListener('click', function (e) { if (e.target === mask) closePanel(); });
+            mask.querySelector('#recClose').addEventListener('click', closePanel);
+            mask.querySelector('#recClear').addEventListener('click', function () {
+                if (window.confirm && !window.confirm(en() ? 'Clear all records?' : '确定清空棋谱库？（不可恢复）')) return;
+                persist([]); refreshBadge(); renderList();
+            });
+            mask.querySelector('#recList').addEventListener('click', function (e) {
+                const b = e.target && e.target.closest ? e.target.closest('button[data-act]') : null;
+                if (!b) return;
+                const ts = +b.getAttribute('data-ts');
+                const rec = load().filter(function (x) { return x.ts === ts; })[0];
+                if (!rec) return;
+                const act = b.getAttribute('data-act');
+                if (act === 'view') { closePanel(); REPLAY.open(rec); }
+                else if (act === 'share') {
+                    copyText(shareUrl(rec));
+                    try { toast(en() ? 'Link copied ✓' : '分享链接已复制 ✓'); } catch (e) {}
+                } else if (act === 'del') {
+                    persist(load().filter(function (x) { return x.ts !== ts; }));
+                    refreshBadge(); renderList();
+                }
+            });
+        }
+        renderList();
+        mask.classList.add('show');
+        refreshBadge();
+    }
+    function renderList() {
+        const el = document.getElementById('recList');
+        if (!el) return;
+        const list = load();
+        if (!list.length) {
+            el.innerHTML = '<div class="rec-empty">' + (en() ? 'No records yet — finish a game and it will be saved here' : '棋谱库是空的，下完一局就会自动存进来') + '</div>';
+            return;
+        }
+        el.innerHTML = list.map(function (rec) {
+            const r = rowOf(rec);
+            return '<div class="rec-item"><div class="ri-meta"><div class="ri-t1">' + r.t1 + '</div><div class="ri-t2">' + r.t2 + '</div></div>' +
+                '<div class="ri-btns"><button data-act="view" data-ts="' + rec.ts + '">▶ ' + (en() ? 'View' : '看') + '</button>' +
+                '<button data-act="share" data-ts="' + rec.ts + '">🔗</button>' +
+                '<button class="del" data-act="del" data-ts="' + rec.ts + '">🗑</button></div></div>';
+        }).join('');
+    }
+    function closePanel() { const m = document.getElementById('recMask'); if (m) m.classList.remove('show'); }
+    /* 分享链接导入（#g=...） */
+    function applyHash() {
+        try {
+            const m = /#g=([A-Za-z0-9+/=]+)/.exec(location.hash || '');
+            if (!m) return;
+            let p = null;
+            try { p = JSON.parse(atob(m[1])); } catch (e) { return; }
+            if (!p || !p.m) return;
+            const rec = { v: 1, ts: Date.now(), s: +p.s || 15, r: +p.r || 0, d: +p.d || 0, h: +p.h || 1, w: (p.w === 0 ? 0 : (p.w == null ? null : +p.w)), f: p.f || null, n: String(p.m).split(';').length, m: String(p.m) };
+            addRec(rec);
+            REPLAY.open(rec);
+            try { toast(en() ? 'Shared record loaded ✓' : '已打开分享的棋谱 ✓'); } catch (e) {}
+        } catch (e) {}
+    }
+    return { save: save, openPanel: openPanel, closePanel: closePanel, refreshBadge: refreshBadge, applyHash: applyHash, shareUrl: shareUrl };
+})();
+
+/* ============================================================
+ * 📜 v54 回放浏览：工具栏播放器 + 棋盘临时切换到历史局面
+ * ============================================================ */
+var REPLAY = (function () {
+    'use strict';
+    let rec = null, parsed = null, idx = 0;
+    function en() { try { return I18N.lang() === 'en'; } catch (e) { return false; } }
+    function parseMoves(m) {
+        return String(m || '').split(';').filter(Boolean).map(function (t) {
+            const p = t.split(',');
+            return { row: +p[0], col: +p[1] };
+        });
+    }
+    function active() { return !!rec; }
+    function size() { return rec ? rec.s : SIZE; }
+    function board() {
+        if (!rec) return board;
+        const b = Array(rec.s).fill().map(function () { return Array(rec.s).fill(0); });
+        for (let k = 0; k < idx && k < parsed.length; k++) {
+            const mv = parsed[k];
+            if (mv.row >= 0 && mv.row < rec.s && mv.col >= 0 && mv.col < rec.s) b[mv.row][mv.col] = (k % 2 === 0) ? 1 : 2;
+        }
+        return b;
+    }
+    function lastMove() { return (rec && idx > 0 && parsed[idx - 1]) ? parsed[idx - 1] : null; }
+    function open(r) {
+        try {
+            if (!r || !r.m) return;
+            if (typeof gameOver !== 'undefined' && !gameOver && typeof moveHistory !== 'undefined' && moveHistory.length) {
+                try { toast(en() ? 'Game in progress — replay after it ends' : '对局进行中，结束后再回看棋谱哦'); } catch (e) {}
+                return;
+            }
+            if (typeof aiBusy !== 'undefined' && aiBusy) { try { toast(en() ? 'Engine is thinking — try again in a moment' : '引擎思考中，稍后再打开回放'); } catch (e) {} return; }
+            rec = r; parsed = parseMoves(r.m); idx = parsed.length;
+            setMainVisible(false);
+            const ctl = document.getElementById('replayCtl');
+            if (ctl) ctl.style.display = '';
+            syncIdx();
+            try { updateStatus(); } catch (e) {}
+            drawBoard();
+        } catch (e) {}
+    }
+    function close() {
+        rec = null; parsed = null; idx = 0;
+        const ctl = document.getElementById('replayCtl');
+        if (ctl) ctl.style.display = 'none';
+        setMainVisible(true);
+        try { updateStatus(); } catch (e) {}
+        drawBoard();
+    }
+    function setMainVisible(v) {
+        const ids = ['undoBtn', 'resetBtn', 'coachBtn', 'reviewBtn'];
+        for (let i2 = 0; i2 < ids.length; i2++) {
+            const b = document.getElementById(ids[i2]);
+            if (b) b.style.display = v ? '' : 'none';
+        }
+        if (v) { try { COACH.sync(); } catch (e) {} }
+    }
+    function syncIdx() {
+        const el = document.getElementById('rpIdx');
+        if (el) el.textContent = en() ? ('Move ' + idx + ' / ' + parsed.length) : ('第 ' + idx + ' / ' + parsed.length + ' 手');
+    }
+    function step(d) {
+        if (!rec) return;
+        idx = Math.max(0, Math.min(parsed.length, idx + d));
+        syncIdx();
+        try { updateStatus(); } catch (e) {}
+        drawBoard();
+    }
+    function jump(v) {
+        if (!rec) return;
+        idx = v ? parsed.length : 0;
+        syncIdx();
+        try { updateStatus(); } catch (e) {}
+        drawBoard();
+    }
+    function statusText() {
+        if (!rec) return '';
+        const res = (rec.w == null) ? (en() ? 'draw' : '和') : ((rec.w === rec.h) ? (en() ? 'you won' : '你胜') : (en() ? 'you lost' : '你负'));
+        return (en() ? '📜 Replay · ' : '📜 回放中 · ') + idx + ' / ' + parsed.length + (en() ? ' moves (' + res + ')' : ' 手（' + res + '）');
+    }
+    function click(ev, isTouch) {
+        try {
+            if (!rec) return;
+            const e = isTouch ? (ev.touches && ev.touches[0]) : ev;
+            if (!e) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+            step(x < canvas.width / 2 ? -1 : 1);
+        } catch (e) {}
+    }
+    try {
+        document.addEventListener('keydown', function (e) {
+            if (!rec) return;
+            if (e.key === 'ArrowLeft') { step(-1); e.preventDefault(); }
+            else if (e.key === 'ArrowRight') { step(1); e.preventDefault(); }
+            else if (e.key === 'Escape') { close(); }
+        });
+    } catch (e) {}
+    return { active: active, open: open, close: close, size: size, board: board, lastMove: lastMove, step: step, jump: jump, click: click, statusText: statusText };
+})();
+
 
 // ---------- 初始化 ----------
 canvas.addEventListener('click', handleCanvasClick);
@@ -6804,6 +7099,12 @@ document.getElementById('logSaveBtn').addEventListener('click', function () { tr
 document.getElementById('logClearBtn').addEventListener('click', function () { LOG.clear(); });
 document.getElementById('reviewImgBtn').addEventListener('click', function () { try { COACH.exportReviewImage(); } catch (e) {} });
 document.getElementById('achBtn').addEventListener('click', function () { try { ACH.openPanel(); } catch (e) {} });
+document.getElementById('recOpenBtn').addEventListener('click', function () { try { RECORDS.openPanel(); } catch (e) {} });
+document.getElementById('rpFirst').addEventListener('click', function () { try { REPLAY.jump(0); } catch (e) {} });
+document.getElementById('rpPrev').addEventListener('click', function () { try { REPLAY.step(-1); } catch (e) {} });
+document.getElementById('rpNext').addEventListener('click', function () { try { REPLAY.step(1); } catch (e) {} });
+document.getElementById('rpLast').addEventListener('click', function () { try { REPLAY.jump(1); } catch (e) {} });
+document.getElementById('rpExit').addEventListener('click', function () { try { REPLAY.close(); } catch (e) {} });
 document.querySelectorAll('.difficulty-btn[data-level]').forEach(btn => {
     btn.addEventListener('click', () => { if (window.NET && NET.online()) return; setDifficulty(parseInt(btn.dataset.level)); });
 });
@@ -7131,6 +7432,7 @@ if (RAPFI.available) {
 }
 /* —— 加载引导收尾 —— */
 window.__bootDone = true;
+setTimeout(function () { try { RECORDS.applyHash(); } catch (e) {} }, 900);
 (function () {
     var ov = document.getElementById('bootOv');
     if (!ov) return;
