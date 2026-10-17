@@ -457,7 +457,8 @@ I18N.phrase({"在线五子棋 · AI 学习反制版 · 免费即玩 · 星恬": 
 "XL Engine 攻击型 · 强度接近困难档（仅 15×15）": "XL Engine (attacking style) · close to Hard, 15×15 only","快速计算型 · 强于中等档（仅 15×15）": "Fast tactical engine · stronger than Medium, 15×15 only","棋谱库": "Game records","📜 打开棋谱库": "📜 Open records","分享链接已复制 ✓": "Link copied ✓","棋谱库是空的，下完一局就会自动存进来": "No records yet — finish a game and it will be saved here","每日一题": "Daily puzzle","🧩 今日残局": "🧩 Today's puzzle","🧩 每日残局挑战中": "🧩 Daily puzzle in progress","🧩 残局 · 已解开 🎉": "🧩 Puzzle · solved 🎉","🎉 答对了！": "🎉 Correct!"});
 /* ---- 数字/日期拼接规则 ---- */
 I18N.rules([["^你的回合 \\(⚫黑\\)$", "Your turn (⚫ Black)"], ["^你的回合 \\(⚪白\\)$", "Your turn (⚪ White)"], ["^🤖 AI 思考中\\.\\.\\. \\(⚫黑\\)$", "🤖 AI thinking... (⚫ Black)"], ["^🤖 AI 思考中\\.\\.\\. \\(⚪白\\)$", "🤖 AI thinking... (⚪ White)"], ["^🏆 成就 (\\d+)/(\\d+)$", "🏆 Achievements $1/$2"], ["^⚡ 热度学习: (\\d+) 手 \\(≥(\\d+)手激活\\)$", "⚡ Heat learning: $1 moves (activates at ≥$2)"], ["^📚 \\[简单\\] (\\d+)局 \\| AI (\\d+)胜 (\\d+)负 (\\d+)平 \\| 败因 (\\d+)$", "📚 [Easy] $1 games | AI $2W $3L $4D | causes $5"], ["^📚 \\[中等\\] (\\d+)局 \\| AI (\\d+)胜 (\\d+)负 (\\d+)平 \\| 败因 (\\d+)$", "📚 [Medium] $1 games | AI $2W $3L $4D | causes $5"], ["^📚 \\[困难\\] (\\d+)局 \\| AI (\\d+)胜 (\\d+)负 (\\d+)平 \\| 败因 (\\d+)$", "📚 [Hard] $1 games | AI $2W $3L $4D | causes $5"], ["^📚 \\[灵拙\\] (\\d+)局 \\| AI (\\d+)胜 (\\d+)负 (\\d+)平 \\| 败因 (\\d+)$", "📚 [Lingzhuo] $1 games | AI $2W $3L $4D | causes $5"]]);
-I18N.rules([["^· 多线程引擎已启动（(.+) 线程并行 · 128MB 哈希表）$", "· Multi-thread engine started ($1 threads, 128MB hash)"],["^· 多线程引擎已启动（(.+) 线程并行）$", "· Multi-thread engine started ($1 threads)"]]);
+I18N.rules([["^· 多线程引擎已启动（(.+) 线程并行 · 128MB 哈希表）$", "· Multi-thread engine started ($1 threads, 128MB hash)"],["^· 多线程引擎已启动（(.+) 线程并行）$", "· Multi-thread engine started ($1 threads)"],["^· 多线程已自动点亮（跨源隔离生效 · (.+) 线程）$", "· Multi-thread auto-enabled (cross-origin isolated · $1 threads)"],["^· 后台服务注册失败（多线程暂不可用，单线程照常）：(.+)$", "· Background service registration failed (multi-thread unavailable): $1"],["^多线程 ✓ (\\d+) 线程$", "Multi-thread ✓ $1 threads"],["^检测到跨源隔离已生效（(\\d+) 核可用）：点击启用多线程，困难与灵拙多核搜索、更强更快。$", "Cross-origin isolation is active ($1 cores): enable multi-thread for stronger, faster Hard & Lingzhuo."],["^多线程已启用（跨源隔离生效 · (\\d+) 线程）。困难与灵拙均使用多核搜索。(.*)$", "Multi-thread on (cross-origin isolated · $1 threads). Hard & Lingzhuo both search on multiple cores.$2"],["^（注：(\\d+) 线程超过物理核数 (\\d+)，收益递减）$", " (note: $1 threads exceed $2 physical cores, diminishing returns)"]]);
+I18N.phrase({"单线程（隔离就绪）": "Single-thread (isolation ready)","单线程（启用中…）": "Single-thread (enabling…)","单线程（可升级）": "Single-thread (upgradable)","单线程": "Single-thread","🔧 关闭多线程（回到单线程）": "🔧 Disable multi-thread (back to single)","🔄 点我完成启用（刷新）": "🔄 Click to finish enabling (reload)","当前环境不支持多线程": "Multi-thread unavailable here","多线程启用流程尚未生效：点上方按钮刷新一次即可完成（若反复出现，请检查浏览器是否禁用了站点后台服务）。": "Enabling isn't complete yet: click the button above to reload once (if it repeats, check whether your browser disabled the site's background service).","当前环境不支持多线程加速（需要 HTTPS + Service Worker）。灵拙以单线程模式运行，功能完整。": "Multi-thread boost isn't supported here (needs HTTPS + Service Worker). Lingzhuo runs single-threaded with full features.","单线程（此浏览器不支持）": "Single-thread (unsupported browser)","这个浏览器不支持跨源隔离（COEP credentialless），多线程开不起来；灵拙以单线程运行，功能完整。用 Edge / Chrome 可解锁多核。": "This browser doesn't support cross-origin isolation (COEP credentialless), so multi-thread can't start; Lingzhuo runs single-threaded with full features. Edge / Chrome can unlock multi-core."});
 I18N.auto();
 /* ==== i18n-kit v1.2 end ==== */
 </script>
@@ -3821,7 +3822,10 @@ const RAPFI = (function () {
                         function onReady(w2, m) { if (settled) return; settled = true; clearTimeout(timer); try { LOG.add(variant.indexOf('multi') === 0 ? '  · 多线程引擎已启动（' + ((m && m.__nthreads) || '?') + ' 线程并行 · 128MB 哈希表）' : '  · 单线程引擎已启动（64MB 哈希表）'); } catch (e) {} resolve(w); },
                         function onFailInit(err) { if (settled) return; settled = true; clearTimeout(timer); try { w.terminate(); } catch (e) {} reject(err); }
                     );
-                    try { w.postMessage({ __init: true, wasmBuf: a.wasmBuf, dataBuf: a.dataBuf, threadN: prefThreads() }, [a.wasmBuf, a.dataBuf]); }
+                    /* v56：a.wasmBuf/a.dataBuf 是 ensureAssetsV2 的共享缓存，postMessage 转移后会 detach，
+                       导致「同变体第二次 init」必然失败（ArrayBuffer already detached）→ 每次 init 发副本 */
+                    var __wb = a.wasmBuf.slice(0), __db = a.dataBuf.slice(0);
+                    try { w.postMessage({ __init: true, wasmBuf: __wb, dataBuf: __db, threadN: prefThreads() }, [__wb, __db]); }
                     catch (e) { if (!settled) { settled = true; clearTimeout(timer); reject(e); } }
                 });
             }).catch(function (err) {
@@ -5724,7 +5728,18 @@ function setSide(side) {
             btn.disabled = false;
             note.textContent = '检测到跨源隔离已生效（' + (e.cores || '?') + ' 核可用）：点击启用多线程，困难与灵拙多核搜索、更强更快。';
         } else if (e.sw) {
-            if (st.optin) {
+            /* v56：SW 已接管却始终没有隔离 —— 多半是浏览器不支持 COEP credentialless（如 Firefox）。
+               本会话已自动刷过一次还不成 → 直接判「不支持」，别让用户点来点去。 */
+            var __hardTried = false;
+            try { __hardTried = sessionStorage.getItem('startian_mt_reload') === '1' || sessionStorage.getItem('startian_mt_auto_v1') === '1'; } catch (x) {}
+            if (st.optin && st.pageHadSW && __hardTried) {
+                badge.textContent = '单线程（此浏览器不支持）';
+                badge.style.background = '#b9c6d8';
+                btn.textContent = '当前浏览器不支持多线程';
+                btn.dataset.action = '';
+                btn.disabled = true;
+                note.textContent = '这个浏览器不支持跨源隔离（COEP credentialless），多线程开不起来；灵拙以单线程运行，功能完整。用 Edge / Chrome 可解锁多核。';
+            } else if (st.optin) {
                 badge.textContent = '单线程（启用中…）';
                 badge.style.background = '#d8b26a';
                 btn.textContent = '🔄 点我完成启用（刷新）';
@@ -5821,6 +5836,68 @@ function setSide(side) {
             try { sessionStorage.removeItem('startian_mt_reload'); } catch (x) {}
         }
     } catch (x) {}
+    /* ==================== v56：多线程自动点亮（无需手动点击） ====================
+       目标：让多线程在访客无感的情况下自动生效。
+       ① 未隔离但支持 Service Worker → 静默注册 sw.js（只注入 COOP/COEP，不缓存任何东西）
+       ② 已接管 / 注册激活 → 本会话自动刷新一次（sessionStorage 守卫，最多一次，绝不循环）
+       ③ 刷新后 crossOriginIsolated 生效且核数 ≥ 2 → 自动 opt-in，此后不再需要点击
+       ④ 用户点过「关闭多线程」(startian_mt_v1 === '0') → 永久尊重，不再自动开启
+       ⑤ 带 hash（#g= 分享棋谱 / #日期）或已有落子 → 不刷新，避免打断 */
+    (function autoMT() {
+        var e = env();
+        var pref = null;
+        try { pref = localStorage.getItem('startian_mt_v1'); } catch (x) {}
+        if (pref === '0') return;
+        if ((e.cores || 0) < 2) return;
+
+        if (e.coi) {
+            if (!optin()) {
+                setOptin(true);
+                try { LOG.add('  · 多线程已自动点亮（跨源隔离生效 · ' + prefThreads() + ' 线程）'); } catch (x) {}
+                render();
+            }
+            return;
+        }
+        if (!e.sw) return;
+
+        var tried = false;
+        try { tried = sessionStorage.getItem('startian_mt_auto_v1') === '1'; } catch (x) {}
+        var ctrl = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+        var canReload = !tried && (!location.hash || location.hash === '#') &&
+            (typeof moveHistory === 'undefined' || !moveHistory.length);
+        function reloadOnce() {
+            if (!canReload) return;
+            setTimeout(function () {
+                /* 二次保护：真刷之前再确认没在局中、页面在前台 */
+                if (typeof moveHistory !== 'undefined' && moveHistory.length) return;
+                if (document.visibilityState === 'hidden') return;
+                try { sessionStorage.setItem('startian_mt_auto_v1', '1'); } catch (x) {}
+                location.reload();
+            }, 320);
+        }
+        if (ctrl) { reloadOnce(); return; }          /* 已接管但本页未隔离 → 补刷一次 */
+        if (tried) return;
+        try { sessionStorage.setItem('startian_mt_auto_v1', '1'); } catch (x) {}
+        try {
+            navigator.serviceWorker.register('sw.js').then(function (reg) {
+                var fired = false;
+                function fire() {
+                    if (fired) return;
+                    fired = true;
+                    reloadOnce();
+                }
+                function watch(sw) {
+                    if (!sw) return;
+                    if (sw.state === 'activated') { fire(); return; }
+                    sw.addEventListener('statechange', function () { if (sw.state === 'activated') fire(); });
+                }
+                if (reg.active) { fire(); return; }
+                watch(reg.installing); watch(reg.waiting);
+            }).catch(function (err) {
+                try { LOG.add('  · 后台服务注册失败（多线程暂不可用，单线程照常）：' + ((err && err.message) || err)); } catch (x) {}
+            });
+        } catch (x) {}
+    })();
 })();
 
 // ---------- 🔮 AI 推理棋局（摆阵推演 · v35） ----------
@@ -7632,6 +7709,32 @@ try { window.__gomokuTest = { declareDraw: declareDraw, findAnyEmptyCell: findAn
         clearCache: function () {
             if (typeof caches === 'undefined') return Promise.resolve(false);
             return caches.delete('gomoku-engine-assets-v1').catch(function () { return false; });
+        }
+    },
+    mt: {
+        state: function () {
+            var coi = false; try { coi = (typeof crossOriginIsolated !== 'undefined') && !!crossOriginIsolated; } catch (e) {}
+            var opt = null; try { opt = localStorage.getItem('startian_mt_v1'); } catch (e) {}
+            var th = null; try { th = localStorage.getItem('startian_mt_threads_v1'); } catch (e) {}
+            return {
+                coi: coi,
+                sab: (typeof SharedArrayBuffer !== 'undefined'),
+                optin: opt,
+                threadsPref: th,
+                ctrl: !!(navigator.serviceWorker && navigator.serviceWorker.controller),
+                cores: navigator.hardwareConcurrency || 0,
+                badge: (document.getElementById('mtBadge') || {}).textContent || '',
+                note: (document.getElementById('mtNote') || {}).textContent || ''
+            };
+        },
+        reset: function () {
+            try {
+                localStorage.removeItem('startian_mt_v1');
+                localStorage.removeItem('startian_mt_threads_v1');
+                sessionStorage.removeItem('startian_mt_auto_v1');
+                sessionStorage.removeItem('startian_mt_reload');
+            } catch (e) {}
+            return true;
         }
     },
     renju: {
