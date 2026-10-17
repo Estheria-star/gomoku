@@ -458,7 +458,7 @@ I18N.phrase({"在线五子棋 · AI 学习反制版 · 免费即玩 · 星恬": 
 /* ---- 数字/日期拼接规则 ---- */
 I18N.rules([["^你的回合 \\(⚫黑\\)$", "Your turn (⚫ Black)"], ["^你的回合 \\(⚪白\\)$", "Your turn (⚪ White)"], ["^🤖 AI 思考中\\.\\.\\. \\(⚫黑\\)$", "🤖 AI thinking... (⚫ Black)"], ["^🤖 AI 思考中\\.\\.\\. \\(⚪白\\)$", "🤖 AI thinking... (⚪ White)"], ["^🏆 成就 (\\d+)/(\\d+)$", "🏆 Achievements $1/$2"], ["^⚡ 热度学习: (\\d+) 手 \\(≥(\\d+)手激活\\)$", "⚡ Heat learning: $1 moves (activates at ≥$2)"], ["^📚 \\[简单\\] (\\d+)局 \\| AI (\\d+)胜 (\\d+)负 (\\d+)平 \\| 败因 (\\d+)$", "📚 [Easy] $1 games | AI $2W $3L $4D | causes $5"], ["^📚 \\[中等\\] (\\d+)局 \\| AI (\\d+)胜 (\\d+)负 (\\d+)平 \\| 败因 (\\d+)$", "📚 [Medium] $1 games | AI $2W $3L $4D | causes $5"], ["^📚 \\[困难\\] (\\d+)局 \\| AI (\\d+)胜 (\\d+)负 (\\d+)平 \\| 败因 (\\d+)$", "📚 [Hard] $1 games | AI $2W $3L $4D | causes $5"], ["^📚 \\[灵拙\\] (\\d+)局 \\| AI (\\d+)胜 (\\d+)负 (\\d+)平 \\| 败因 (\\d+)$", "📚 [Lingzhuo] $1 games | AI $2W $3L $4D | causes $5"]]);
 I18N.rules([["^· 多线程引擎已启动（(.+) 线程并行 · 128MB 哈希表）$", "· Multi-thread engine started ($1 threads, 128MB hash)"],["^· 多线程引擎已启动（(.+) 线程并行）$", "· Multi-thread engine started ($1 threads)"],["^· 多线程已自动点亮（跨源隔离生效 · (.+) 线程）$", "· Multi-thread auto-enabled (cross-origin isolated · $1 threads)"],["^· 后台服务注册失败（多线程暂不可用，单线程照常）：(.+)$", "· Background service registration failed (multi-thread unavailable): $1"],["^多线程 ✓ (\\d+) 线程$", "Multi-thread ✓ $1 threads"],["^检测到跨源隔离已生效（(\\d+) 核可用）：点击启用多线程，困难与灵拙多核搜索、更强更快。$", "Cross-origin isolation is active ($1 cores): enable multi-thread for stronger, faster Hard & Lingzhuo."],["^多线程已启用（跨源隔离生效 · (\\d+) 线程）。困难与灵拙均使用多核搜索。(.*)$", "Multi-thread on (cross-origin isolated · $1 threads). Hard & Lingzhuo both search on multiple cores.$2"],["^（注：(\\d+) 线程超过物理核数 (\\d+)，收益递减）$", " (note: $1 threads exceed $2 physical cores, diminishing returns)"]]);
-I18N.phrase({"单线程（隔离就绪）": "Single-thread (isolation ready)","单线程（启用中…）": "Single-thread (enabling…)","单线程（可升级）": "Single-thread (upgradable)","单线程": "Single-thread","🔧 关闭多线程（回到单线程）": "🔧 Disable multi-thread (back to single)","🔄 点我完成启用（刷新）": "🔄 Click to finish enabling (reload)","当前环境不支持多线程": "Multi-thread unavailable here","多线程启用流程尚未生效：点上方按钮刷新一次即可完成（若反复出现，请检查浏览器是否禁用了站点后台服务）。": "Enabling isn't complete yet: click the button above to reload once (if it repeats, check whether your browser disabled the site's background service).","当前环境不支持多线程加速（需要 HTTPS + Service Worker）。灵拙以单线程模式运行，功能完整。": "Multi-thread boost isn't supported here (needs HTTPS + Service Worker). Lingzhuo runs single-threaded with full features.","📈 棋力曲线": "📈 Skill curve","棋力成长": "Skill growth","清空曲线": "Clear curve","还没有记录：下完一局后点「📋 复盘」，这局的准确率就会记进曲线。": "No data yet — finish a game, then tap 📋 Review; that game's accuracy lands here.","残局挑战": "Puzzle challenge","入门": "Easy","进阶": "Advanced","挑战": "Expert","⏭ 换一题": "⏭ Another","解出 ": "solved ","已切换到「": "Switched to ","」，点「今日残局」开始": " — tap Daily puzzle","单线程（此浏览器不支持）": "Single-thread (unsupported browser)","这个浏览器不支持跨源隔离（COEP credentialless），多线程开不起来；灵拙以单线程运行，功能完整。用 Edge / Chrome 可解锁多核。": "This browser doesn't support cross-origin isolation (COEP credentialless), so multi-thread can't start; Lingzhuo runs single-threaded with full features. Edge / Chrome can unlock multi-core."});
+I18N.phrase({"单线程（隔离就绪）": "Single-thread (isolation ready)","单线程（启用中…）": "Single-thread (enabling…)","单线程（可升级）": "Single-thread (upgradable)","单线程": "Single-thread","🔧 关闭多线程（回到单线程）": "🔧 Disable multi-thread (back to single)","🔄 点我完成启用（刷新）": "🔄 Click to finish enabling (reload)","当前环境不支持多线程": "Multi-thread unavailable here","多线程启用流程尚未生效：点上方按钮刷新一次即可完成（若反复出现，请检查浏览器是否禁用了站点后台服务）。": "Enabling isn't complete yet: click the button above to reload once (if it repeats, check whether your browser disabled the site's background service).","当前环境不支持多线程加速（需要 HTTPS + Service Worker）。灵拙以单线程模式运行，功能完整。": "Multi-thread boost isn't supported here (needs HTTPS + Service Worker). Lingzhuo runs single-threaded with full features.","📈 棋力曲线": "📈 Skill curve","棋力成长": "Skill growth","清空曲线": "Clear curve","还没有记录：下完一局后点「📋 复盘」，这局的准确率就会记进曲线。": "No data yet — finish a game, then tap 📋 Review; that game's accuracy lands here.","🔬 后台自对弈生成": "🔬 Background self-play","开启（占用 CPU）": "Enable (uses CPU)","关闭生成": "Turn off","残局挑战": "Puzzle challenge","入门": "Easy","进阶": "Advanced","挑战": "Expert","⏭ 换一题": "⏭ Another","解出 ": "solved ","已切换到「": "Switched to ","」，点「今日残局」开始": " — tap Daily puzzle","单线程（此浏览器不支持）": "Single-thread (unsupported browser)","这个浏览器不支持跨源隔离（COEP credentialless），多线程开不起来；灵拙以单线程运行，功能完整。用 Edge / Chrome 可解锁多核。": "This browser doesn't support cross-origin isolation (COEP credentialless), so multi-thread can't start; Lingzhuo runs single-threaded with full features. Edge / Chrome can unlock multi-core."});
 I18N.auto();
 /* ==== i18n-kit v1.2 end ==== */
 </script>
@@ -1053,6 +1053,18 @@ I18N.auto();
             <div class="difficulty-row">
                 <button class="difficulty-btn" id="pzStartBtn" type="button" style="flex:1;">🧩 今日残局</button>
                 <button class="difficulty-btn" id="pzNextBtn" type="button" style="flex:1;">⏭ 换一题</button>
+            </div>
+            <div id="genBox" style="margin-top:8px;border-top:1px dashed #cfe0f2;padding-top:8px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-weight:700;font-size:13px;">🔬 后台自对弈生成</span>
+                    <span class="learning-badge" id="genBadge" style="background:#b9c6d8;">关</span>
+                </div>
+                <div class="difficulty-row" style="margin-top:6px;">
+                    <button class="difficulty-btn" id="genToggle" type="button" style="flex:1;">开启（占用 CPU）</button>
+                </div>
+                <div id="genNote" style="font-size:11.5px;font-weight:700;color:#6f93b4;margin-top:6px;line-height:1.6;">
+                    关闭时不消耗任何性能。开启后会在空闲时用引擎自对弈，把算出来的杀棋局面存进本机题库。
+                </div>
             </div>
         </div>
         <div class="status-box" id="statusMsg">你的回合 (黑棋)</div>
@@ -7055,6 +7067,158 @@ const PUZZLES = (function () {
     return list;
 })();
 
+/* ============================================================
+ * 🔬 v59 后台自对弈生成残局
+ *    · 开关默认关；开启要过一道确认（免责）
+ *    · 只在「页面可见 + 没在对局/复盘/残局 + 冷却已过」时跑
+ *    · 本会话最多 3 题；生成题存在 localStorage，只在本机
+ * ============================================================ */
+var GEN = (function () {
+    'use strict';
+    const KEY = 'gomoku_gen_puzzles_v1';
+    const ONK = 'gomoku_gen_on_v1';
+    const MAXP = 40;
+    var running = false, sessionMade = 0, lastRun = 0, timer = 0;
+    var startAt = Date.now(), cache = null;
+    function en() { try { return I18N.lang() === 'en'; } catch (e) { return false; } }
+    function L(zh, tx) { return en() ? tx : zh; }
+    function load() {
+        try { var a = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+    }
+    function persist(a) { cache = a.slice(-MAXP); try { localStorage.setItem(KEY, JSON.stringify(cache)); } catch (e) {} }
+    function isOn() { try { return localStorage.getItem(ONK) === '1'; } catch (e) { return false; } }
+    function setOn(v) { try { localStorage.setItem(ONK, v ? '1' : '0'); } catch (e) {} }
+    function list() { if (!cache) cache = load(); return cache; }
+    function badge() {
+        var b = document.getElementById('genBadge');
+        if (!b) return;
+        var n2 = load().length;
+        if (!isOn()) { b.textContent = n2 ? L('关 · 已存 ' + n2, 'off · ' + n2) : L('关', 'off'); b.style.background = '#b9c6d8'; return; }
+        b.textContent = running ? L('生成中…', 'generating…') : (L('开 · 已存 ' + n2, 'on · ' + n2));
+        b.style.background = running ? '#d8b26a' : '#5cb885';
+    }
+    function note(t) { var el = document.getElementById('genNote'); if (el && t) el.textContent = t; }
+    function syncBtn() {
+        var b = document.getElementById('genToggle');
+        if (!b) return;
+        if (isOn()) { b.classList.add('on'); b.textContent = L('关闭生成', 'Turn off'); }
+        else { b.classList.remove('on'); b.textContent = L('开启（占用 CPU）', 'Enable (uses CPU)'); }
+        badge();
+    }
+    /* —— 生成一局，返回候选题目 —— */
+    function parseHist(h) {
+        return h.map(function (s) { var p = s.split(','); return [+p[0], +p[1], +p[2]]; });
+    }
+    function runGame() {
+        return new Promise(function (resolve) {
+            var hist = [], cands = [], ply = 0;
+            function step() {
+                if (ply >= 30) { resolve(cands); return; }
+                var who = (ply % 2 === 0) ? 'nnue' : 'cls';
+                var body = hist.join(' ');
+                RAPFI.think(who, 260, 99, 0, body, 0).then(function (r) {
+                    if (!r || !r.move) { resolve(cands); return; }
+                    var ev = String(RAPFI.parseSummary(r.logs || []).ev || '');
+                    var m = /^\+M(\d+)$/.exec(ev);
+                    if (m && +m[1] >= 3 && +m[1] <= 7 && hist.length >= 7 && hist.length <= 24) {
+                        cands.push({
+                            body: hist.slice(),
+                            toMove: (ply % 2 === 0) ? 1 : 2,
+                            mv: [r.move.row, r.move.col],
+                            mate: +m[1]
+                        });
+                    }
+                    hist.push(r.move.row + ',' + r.move.col + ',' + ((ply % 2 === 0) ? 1 : 2));
+                    ply++;
+                    setTimeout(step, 0);
+                }).catch(function () { resolve(cands); });
+            }
+            step();
+        });
+    }
+    /* —— 二次验证：换另一个引擎，首选必须一致（否则多解，弃用）—— */
+    function verify(c) {
+        var other = (c.toMove === 1) ? 'cls' : 'nnue';
+        return RAPFI.think(other, 420, 99, 0, c.body.join(' '), 0).then(function (r) {
+            if (!r || !r.move) return null;
+            if (r.move.row !== c.mv[0] || r.move.col !== c.mv[1]) return null;
+            var sig = c.body.join(' ') + '|' + c.mv.join(',');
+            return {
+                id: 'g' + Math.abs(hashCode(sig)),
+                lv: (c.mate <= 3) ? 2 : 3,
+                toMove: c.toMove,
+                sol: [c.mv.slice()], best: c.mv.slice(),
+                desc: '实战杀棋 M' + c.mate, descEn: 'From a real game · mate in ' + c.mate,
+                hint: '找出能连续冲四的起点', hintEn: 'Find the first forcing four',
+                s: parseHist(c.body), gen: 1, mate: c.mate
+            };
+        }).catch(function () { return null; });
+    }
+    function hashCode(s) { var h = 0; for (var i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0; } return h; }
+    /* —— 调度 —— */
+    function busy() {
+        try {
+            if (document.visibilityState !== 'visible') return true;
+            if (typeof aiBusy !== 'undefined' && aiBusy) return true;
+            if (window.PUZZLE && PUZZLE.active()) return true;
+            if (window.REPLAY && REPLAY.active()) return true;
+            if (typeof gameOver !== 'undefined' && !gameOver && typeof moveHistory !== 'undefined' && moveHistory.length) return true;
+        } catch (e) {}
+        return false;
+    }
+    function tick() {
+        badge();
+        if (!isOn() || running) return;
+        if (sessionMade >= 3) return;
+        if (Date.now() - lastRun < 20000) return;
+        if (Date.now() - startAt < 60000) return;   /* 刚打开页面先别抢性能，等 1 分钟 */
+        if (busy()) return;
+        running = true; badge();
+        note(L('正在自对弈生成（会占用 CPU，随时可关）…', 'Self-play generating (CPU in use, turn off anytime)…'));
+        runGame().then(function (cands) {
+            if (!cands.length) return null;
+            var seq = Promise.resolve(null);
+            cands.slice(0, 2).forEach(function (c) {
+                seq = seq.then(function (ok) {
+                    if (ok) return ok;
+                    return verify(c);
+                });
+            });
+            return seq;
+        }).then(function (p) {
+            if (p) {
+                var arr = load();
+                if (!arr.some(function (x) { return x.id === p.id; })) {
+                    arr.push(p); persist(arr); sessionMade++;
+                    note(L('已生成 1 题：' + (p.lv === 2 ? '进阶' : '挑战') + '（共 ' + arr.length + ' 题）', 'Generated 1 puzzle (' + arr.length + ' total)'));
+                    try { PUZZLE.refreshBadge(); } catch (e) {}
+                    try { toast(L('🔬 后台生成了 1 道残局', '🔬 1 puzzle generated')); } catch (e) {}
+                }
+            }
+        }).catch(function () {}).then(function () {
+            running = false; lastRun = Date.now(); badge();
+            if (sessionMade < 3 && isOn()) note(L('本会话已生成 ' + sessionMade + ' 题，继续后台攒着…', sessionMade + ' generated this session…'));
+            else if (sessionMade >= 3) note(L('本会话已生成 3 题（上限），刷新页面可继续。', '3 this session (cap) — reload to continue.'));
+        });
+    }
+    function start() {
+        syncBtn();
+        if (!timer) timer = setInterval(tick, 12000);
+    }
+    function toggle() {
+        if (isOn()) { setOn(false); syncBtn(); note(L('已关闭，不再占用性能。已生成的题会保留。', 'Off — generated puzzles are kept.')); return; }
+        var msg = L('开启后会在页面空闲时用引擎自对弈生成残局：\n\n· 会持续占用 CPU（多线程引擎更明显）\n· 可能增加耗电、让设备发热、风扇变吵\n· 建议插电、且不在做别的事情时开启\n· 生成的题目只存在本机浏览器，换设备不带走\n\n确定开启吗？',
+            'This runs engine self-play while the page is idle:\n\n· keeps using CPU\n· may drain battery, heat the device, spin the fan\n· best when plugged in and idle\n· generated puzzles stay in this browser only\n\nEnable?');
+        var ok = true;
+        try { ok = window.confirm(msg); } catch (e) {}
+        if (!ok) return;
+        setOn(true); sessionMade = 0; lastRun = 0; syncBtn();
+        note(L('已开启：空闲时后台自对弈，本会话最多生成 3 题。', 'On — self-play while idle, max 3 per session.'));
+    }
+    return { start: start, toggle: toggle, list: list, isOn: isOn, badge: badge, syncBtn: syncBtn, reset: function () { persist([]); badge(); },
+        _run: runGame, _verify: verify, _save: function (p) { var a = load(); a.push(p); persist(a); try { PUZZLE.refreshBadge(); } catch (e) {} } };
+})();
+
 var PUZZLE = (function () {
     'use strict';
     const KEY = 'gomoku_puzzle_v1';
@@ -7068,11 +7232,19 @@ var PUZZLE = (function () {
     function ds(d) { const p2 = function (x) { return String(x).padStart(2, '0'); }; return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); }
     function today() { return ds(new Date()); }
     function yest() { return ds(new Date(Date.now() - 86400000)); }
+    function allPuzzles() {
+        try {
+            const g = (window.GEN && GEN.list()) ? GEN.list() : [];
+            return g.length ? PUZZLES.concat(g) : PUZZLES;
+        } catch (e) { return PUZZLES; }
+    }
     function lvList(lv) {
-        const a = PUZZLES.filter(function (p) { return p.lv === lv; });
-        return a.length ? a : PUZZLES;
+        const all = allPuzzles();
+        const a = all.filter(function (p) { return p.lv === lv; });
+        return a.length ? a : all;
     }
     function lvCount(lv) { return lvList(lv).length; }
+    function totalCount() { return allPuzzles().length; }
     function curLv() {
         const v = parseInt(st().lv || '1', 10);
         return (v === 2 || v === 3) ? v : 1;
@@ -7100,7 +7272,7 @@ var PUZZLE = (function () {
         const s = st();
         const map = s.solved || {};
         let c = 0;
-        for (const p of PUZZLES) if (map[p.id]) c++;
+        for (const p of allPuzzles()) if (map[p.id]) c++;
         return c;
     }
     function refreshBadge() {
@@ -7109,11 +7281,11 @@ var PUZZLE = (function () {
             if (!b) return;
             const s = st();
             const done = solvedCount();
-            let txt = done ? (L('解出 ', '') + done + '/' + PUZZLES.length + (en() ? '' : '')) : L('未挑战', 'Not started');
+            let txt = done ? (L('解出 ', '') + done + '/' + totalCount()) : L('未挑战', 'Not started');
             if (s.streak) txt = '🔥' + s.streak + ' · ' + txt;
             b.textContent = txt;
-            b.title = L('共 ' + PUZZLES.length + ' 题（入门 ' + lvCount(1) + ' / 进阶 ' + lvCount(2) + ' / 挑战 ' + lvCount(3) + '）',
-                        PUZZLES.length + ' puzzles (' + lvCount(1) + ' easy / ' + lvCount(2) + ' advanced / ' + lvCount(3) + ' expert)');
+            b.title = L('共 ' + totalCount() + ' 题（入门 ' + lvCount(1) + ' / 进阶 ' + lvCount(2) + ' / 挑战 ' + lvCount(3) + '）',
+                        totalCount() + ' puzzles (' + lvCount(1) + ' easy / ' + lvCount(2) + ' advanced / ' + lvCount(3) + ' expert)');
             syncLvBtns();
         } catch (e) {}
     }
@@ -7285,7 +7457,8 @@ var PUZZLE = (function () {
         });
     } catch (e) {}
     return { start: start, close: close, click: click, hint: hint, answer: answer, retry: retry, active: active, size: size, board: board, marks: marks, statusText: statusText, refreshBadge: refreshBadge,
-        setLv: setLv, curLv: curLv, lvCount: lvCount, solvedCount: solvedCount, puzzles: PUZZLES };
+        setLv: setLv, curLv: curLv, lvCount: lvCount, solvedCount: solvedCount, totalCount: totalCount,
+        allPuzzles: allPuzzles, puzzles: PUZZLES };
 })();
 
 /* ============================================================
@@ -7809,6 +7982,10 @@ document.getElementById('rpNext').addEventListener('click', function () { try { 
 document.getElementById('rpLast').addEventListener('click', function () { try { REPLAY.jump(1); } catch (e) {} });
 document.getElementById('rpExit').addEventListener('click', function () { try { REPLAY.close(); } catch (e) {} });
 document.getElementById('pzStartBtn').addEventListener('click', function () { try { PUZZLE.start('today'); } catch (e) {} });
+try {
+    document.getElementById('genToggle').addEventListener('click', function () { try { GEN.toggle(); } catch (e) {} });
+    GEN.start();
+} catch (e) {}
 try {
     document.getElementById('pzNextBtn').addEventListener('click', function () {
         try {
