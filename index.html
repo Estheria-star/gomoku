@@ -454,7 +454,7 @@ I18N.phrase({"在线五子棋 · AI 学习反制版 · 免费即玩 · 星恬": 
 "· 灵拙新一代引擎资源已就绪 ✓（Rapfi 0.43.02 · NNUE 加速）": "· Lingzhuo engine ready ✓ (Rapfi 0.43.02 · NNUE)",
 "· 单线程引擎已启动（64MB 哈希表）": "· Single-thread engine started (64MB hash)",
 "⚖ 规则切换：黑方禁手（连珠）": "⚖ Rule switched: Renju (Black fouls)","⚖ 规则切换：无禁手": "⚖ Rule switched: free-style",
-"XL Engine 攻击型 · 强度接近困难档（仅 15×15）": "XL Engine (attacking style) · close to Hard, 15×15 only","快速计算型 · 强于中等档（仅 15×15）": "Fast tactical engine · stronger than Medium, 15×15 only","棋谱库": "Game records","📜 打开棋谱库": "📜 Open records","分享链接已复制 ✓": "Link copied ✓","棋谱库是空的，下完一局就会自动存进来": "No records yet — finish a game and it will be saved here"});
+"XL Engine 攻击型 · 强度接近困难档（仅 15×15）": "XL Engine (attacking style) · close to Hard, 15×15 only","快速计算型 · 强于中等档（仅 15×15）": "Fast tactical engine · stronger than Medium, 15×15 only","棋谱库": "Game records","📜 打开棋谱库": "📜 Open records","分享链接已复制 ✓": "Link copied ✓","棋谱库是空的，下完一局就会自动存进来": "No records yet — finish a game and it will be saved here","每日一题": "Daily puzzle","🧩 今日残局": "🧩 Today's puzzle","🧩 每日残局挑战中": "🧩 Daily puzzle in progress","🧩 残局 · 已解开 🎉": "🧩 Puzzle · solved 🎉","🎉 答对了！": "🎉 Correct!"});
 /* ---- 数字/日期拼接规则 ---- */
 I18N.rules([["^你的回合 \\(⚫黑\\)$", "Your turn (⚫ Black)"], ["^你的回合 \\(⚪白\\)$", "Your turn (⚪ White)"], ["^🤖 AI 思考中\\.\\.\\. \\(⚫黑\\)$", "🤖 AI thinking... (⚫ Black)"], ["^🤖 AI 思考中\\.\\.\\. \\(⚪白\\)$", "🤖 AI thinking... (⚪ White)"], ["^🏆 成就 (\\d+)/(\\d+)$", "🏆 Achievements $1/$2"], ["^⚡ 热度学习: (\\d+) 手 \\(≥(\\d+)手激活\\)$", "⚡ Heat learning: $1 moves (activates at ≥$2)"], ["^📚 \\[简单\\] (\\d+)局 \\| AI (\\d+)胜 (\\d+)负 (\\d+)平 \\| 败因 (\\d+)$", "📚 [Easy] $1 games | AI $2W $3L $4D | causes $5"], ["^📚 \\[中等\\] (\\d+)局 \\| AI (\\d+)胜 (\\d+)负 (\\d+)平 \\| 败因 (\\d+)$", "📚 [Medium] $1 games | AI $2W $3L $4D | causes $5"], ["^📚 \\[困难\\] (\\d+)局 \\| AI (\\d+)胜 (\\d+)负 (\\d+)平 \\| 败因 (\\d+)$", "📚 [Hard] $1 games | AI $2W $3L $4D | causes $5"], ["^📚 \\[灵拙\\] (\\d+)局 \\| AI (\\d+)胜 (\\d+)负 (\\d+)平 \\| 败因 (\\d+)$", "📚 [Lingzhuo] $1 games | AI $2W $3L $4D | causes $5"]]);
 I18N.rules([["^· 多线程引擎已启动（(.+) 线程并行 · 128MB 哈希表）$", "· Multi-thread engine started ($1 threads, 128MB hash)"],["^· 多线程引擎已启动（(.+) 线程并行）$", "· Multi-thread engine started ($1 threads)"]]);
@@ -868,6 +868,13 @@ I18N.auto();
                 <button class="action-btn rp" id="rpLast" title="跳到末尾">⏭</button>
                 <button class="action-btn rp rpx" id="rpExit" title="退出回放">✕</button>
             </div>
+            <div class="replay-ctl" id="puzzleCtl" style="display:none">
+                <button class="action-btn rp" id="pzHint" title="提示">💡</button>
+                <span class="rp-idx" id="pzInfo">🧩</span>
+                <button class="action-btn rp" id="pzRetry" title="重试">↺</button>
+                <button class="action-btn rp" id="pzAnswer" title="看答案">🏳</button>
+                <button class="action-btn rp rpx" id="pzExit" title="退出残局">✕</button>
+            </div>
         </div>
         <div class="coach-bar off" id="coachBar"></div>
         <div class="canvas-wrap"><canvas id="gobanCanvas" width="690" height="690"></canvas>
@@ -1020,6 +1027,15 @@ I18N.auto();
             </div>
             <div class="difficulty-row">
                 <button class="difficulty-btn" id="recOpenBtn" type="button" style="flex:1;">📜 打开棋谱库</button>
+            </div>
+        </div>
+        <div class="control-group" id="grpPuzzle">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700;">每日一题</span>
+                <span class="learning-badge" id="pzBadge" style="background:#e6b84d;">未挑战</span>
+            </div>
+            <div class="difficulty-row">
+                <button class="difficulty-btn" id="pzStartBtn" type="button" style="flex:1;">🧩 今日残局</button>
             </div>
         </div>
         <div class="status-box" id="statusMsg">你的回合 (黑棋)</div>
@@ -2976,6 +2992,7 @@ function studyStatusText() {
 function updateStatus() {
     try { COACH.sync(); } catch (e) {}
     if (window.REPLAY && REPLAY.active()) { try { statusMsg.innerText = REPLAY.statusText(); return; } catch (e) {} }
+    if (window.PUZZLE && PUZZLE.active()) { try { statusMsg.innerText = PUZZLE.statusText(); return; } catch (e) {} }
     if (studyModeOn) { statusMsg.innerText = studyStatusText(); return; }
     if (window.NET && NET.online()) { try { NET.updateStatus(); return; } catch (e) {} }
     if (gameOver) {
@@ -2991,10 +3008,13 @@ function updateStatus() {
 
 function drawBoard() {
     var __rp = (window.REPLAY && REPLAY.active());
-    try { if (!studyModeOn && !reviewView && !__rp) refreshFoul2(); } catch (e) {}
+    var __pz = (window.PUZZLE && PUZZLE.active());
+    var __alt = __rp || __pz;
+    try { if (!studyModeOn && !reviewView && !__alt) refreshFoul2(); } catch (e) {}
     var __rvSaved = null, __szSaved = null;
     if (reviewView) { __rvSaved = board; board = reviewView.board; }
     else if (__rp) { __rvSaved = board; __szSaved = SIZE; SIZE = REPLAY.size(); board = REPLAY.board(); }
+    else if (__pz) { __rvSaved = board; __szSaved = SIZE; SIZE = PUZZLE.size(); board = PUZZLE.board(); }
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
     const grad = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, W * 0.7);
@@ -3076,7 +3096,7 @@ function drawBoard() {
             ctx.stroke();
         }
     }
-    if (!studyModeOn && !reviewView && !__rp && moveHistory.length > 0) {
+    if (!studyModeOn && !reviewView && !__alt && moveHistory.length > 0) {
         const last = moveHistory[moveHistory.length - 1];
         const p = toPixel(last.row, last.col);
         ctx.fillStyle = '#e33';
@@ -3099,7 +3119,7 @@ function drawBoard() {
     }
     // 热度提示（学习激活且轮到 AI 时轻量显示不需要）
     /* 🏆 胜利连线（叠画在最上层） */
-    if (!reviewView && !__rp && window.__winline && window.__winline.active()) {
+    if (!reviewView && !__alt && window.__winline && window.__winline.active()) {
         try { window.__winline.draw(ctx, toPixel, cell); } catch (e) {}
     }
     /* 🔮 推理模式：推荐落点标记（金色双环 + 十字） */
@@ -3123,7 +3143,7 @@ function drawBoard() {
         } catch (e) {}
     }
     /* 💡 v50 灵拙教练：本步提示标记（紫色双环 + 中心点） */
-    if (!studyModeOn && !reviewView && !__rp && coachHint) {
+    if (!studyModeOn && !reviewView && !__alt && coachHint) {
         try {
             const _cp = toPixel(coachHint.row, coachHint.col);
             ctx.save();
@@ -3139,7 +3159,7 @@ function drawBoard() {
         } catch (e) {}
     }
     /* 📋 v50/v51 复盘标记：关键手（红环+序号）/ 其他失误（彩色小点）/ 灵拙建议（绿点） */
-    if (!reviewView && !__rp && reviewMarks && reviewMarks.length) {
+    if (!reviewView && !__alt && reviewMarks && reviewMarks.length) {
         try {
             for (let _ri = 0; _ri < reviewMarks.length; _ri++) {
                 const _rm = reviewMarks[_ri];
@@ -3169,7 +3189,7 @@ function drawBoard() {
         } catch (e) {}
     }
     /* 📋 v51 复盘：灵拙建议点（绿色双环小点） */
-    if (!reviewView && !__rp && reviewSug && reviewSug.length) {
+    if (!reviewView && !__alt && reviewSug && reviewSug.length) {
         try {
             for (let _si = 0; _si < reviewSug.length; _si++) {
                 const _sm = reviewSug[_si];
@@ -3209,6 +3229,25 @@ function drawBoard() {
             ctx.restore();
         } catch (e) {}
     }
+    /* 🧩 v55 残局：对错标记 */
+    if (__pz) {
+        try {
+            const _pm = PUZZLE.marks() || [];
+            for (let _mi = 0; _mi < _pm.length; _mi++) {
+                const _mm = _pm[_mi];
+                const _mp = toPixel(_mm.row, _mm.col);
+                const _mc = (_mm.kind === 'ok') ? 'rgba(46, 168, 100, 0.95)' : ((_mm.kind === 'reveal') ? 'rgba(230, 184, 77, 0.95)' : 'rgba(232, 78, 60, 0.95)');
+                ctx.save();
+                ctx.strokeStyle = _mc;
+                ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.arc(_mp.x, _mp.y, cell * 0.46, 0, 2 * Math.PI); ctx.stroke();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+                ctx.lineWidth = 1.4;
+                ctx.beginPath(); ctx.arc(_mp.x, _mp.y, cell * 0.55, 0, 2 * Math.PI); ctx.stroke();
+                ctx.restore();
+            }
+        } catch (e) {}
+    }
     if (__rvSaved) board = __rvSaved;
     if (__szSaved != null) SIZE = __szSaved;
 }
@@ -3231,6 +3270,7 @@ function declareDraw(reason) {
 function placeStone(row, col, player) {
     if (studyModeOn) return false;   /* 🔮 推理模式：不落子到对局 */
     if (window.REPLAY && REPLAY.active()) return false;   /* 📜 回放浏览中：禁止落子 */
+    if (window.PUZZLE && PUZZLE.active()) return false;   /* 🧩 残局挑战中：点击走 PUZZLE 通道 */
     if (gameOver) return false;
     if (!isOnBoard(row, col) || board[row][col] !== EMPTY) return false;
     /* 💡 v50：落子即清教练标记与提示条 */
@@ -5247,6 +5287,7 @@ function handleCanvasClick(e) {
     if (studyModeOn) { studyBoardClick(e, false); return; }
     try { if (window.COACH && COACH.reviewClick && COACH.reviewClick(e, false)) return; } catch (er) {}
     try { if (window.REPLAY && REPLAY.active()) { REPLAY.click(e, false); return; } } catch (er) {}
+    try { if (window.PUZZLE && PUZZLE.active()) { PUZZLE.click(e, false); return; } } catch (er) {}
     if (gameOver || currentPlayer !== humanColor) return;
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
@@ -5267,6 +5308,7 @@ function handleTouch(e) {
     if (studyModeOn) { e.preventDefault(); studyBoardClick(e, true); return; }
     try { if (window.COACH && COACH.reviewClick && COACH.reviewClick(e, true)) { e.preventDefault(); return; } } catch (er) {}
     try { if (window.REPLAY && REPLAY.active()) { e.preventDefault(); REPLAY.click(e, true); return; } } catch (er) {}
+    try { if (window.PUZZLE && PUZZLE.active()) { e.preventDefault(); PUZZLE.click(e, true); return; } } catch (er) {}
     if (gameOver || currentPlayer !== humanColor) return;
     e.preventDefault();
     const touch = e.touches[0];
@@ -6841,6 +6883,203 @@ var COACH = (function () {
         state: function () { return { inkBusy: inkBusy, reviewRunning: reviewRunning, hint: coachHint, marks: reviewMarks, view: reviewView ? { i: reviewView.i, played: reviewView.played, sugg: reviewView.sugg } : null }; } };
 })();
 
+
+/* ============================================================
+ * 🧩 v55 每日一题（残局挑战）：题库经 Rapfi 引擎验证（制胜手一致）
+ * ============================================================ */
+const PUZZLES = [
+    { id: 'p1', toMove: 1, sol: [[7, 3], [7, 8]], best: [7, 8], desc: '把四连成五', descEn: 'Complete the five', hint: '四连的两端都行', hintEn: 'Either end of the four',
+      s: [[7, 4, 1], [7, 5, 1], [7, 6, 1], [7, 7, 1], [0, 0, 2], [0, 2, 2], [0, 4, 2], [0, 6, 2]] },
+    { id: 'p2', toMove: 2, sol: [[7, 8]], best: [7, 8], desc: '挡住黑方的连五点', descEn: 'Block Black five point', hint: '黑棋只差右边一格', hintEn: 'One point to the right completes it',
+      s: [[7, 4, 1], [7, 5, 1], [7, 6, 1], [7, 7, 1], [0, 8, 1], [7, 3, 2], [0, 0, 2], [0, 2, 2], [0, 4, 2]] },
+    { id: 'p3', toMove: 1, sol: [[7, 3], [7, 7]], best: [7, 7], desc: '做出活四，一举定胜负', descEn: 'Make an open four', hint: '三连的两端', hintEn: 'Either end of the three',
+      s: [[7, 4, 1], [7, 5, 1], [7, 6, 1], [0, 9, 1], [0, 0, 2], [0, 2, 2], [0, 4, 2], [0, 6, 2]] },
+    { id: 'p4', toMove: 1, sol: [[7, 7]], best: [7, 7], desc: '一手做出两个活三', descEn: 'Create two open threes', hint: '横竖交叉的那个点', hintEn: 'Where the lines cross',
+      s: [[7, 5, 1], [7, 6, 1], [5, 7, 1], [6, 7, 1], [0, 0, 2], [0, 2, 2], [2, 0, 2], [2, 2, 2]] },
+    { id: 'p5', toMove: 1, sol: [[7, 6]], best: [7, 6], desc: '冲四加活三的连环杀', descEn: 'Four + three combo', hint: '既续横四、又起竖三', hintEn: 'Extends the four and starts a three',
+      s: [[7, 3, 1], [7, 4, 1], [7, 5, 1], [5, 6, 1], [6, 6, 1], [7, 2, 2], [0, 0, 2], [0, 2, 2], [2, 0, 2], [2, 2, 2]] },
+    { id: 'p6', toMove: 2, sol: [[7, 4], [7, 8]], best: [7, 8], desc: '压制黑方的活三', descEn: 'Restrain Black open three', hint: '活三两端二选一', hintEn: 'Pick one of the two ends',
+      s: [[7, 5, 1], [7, 6, 1], [7, 7, 1], [0, 8, 1], [0, 10, 1], [0, 0, 2], [0, 2, 2], [2, 0, 2], [2, 2, 2]] },
+    { id: 'p7', toMove: 2, sol: [[7, 3], [7, 8]], best: [7, 8], desc: '白棋一步成品', descEn: 'White to make five', hint: '四连的两端', hintEn: 'Almost there',
+      s: [[7, 4, 2], [7, 5, 2], [7, 6, 2], [7, 7, 2], [0, 0, 1], [0, 2, 1], [0, 4, 1], [2, 0, 1], [2, 2, 1]] },
+    { id: 'p8', toMove: 1, sol: [[7, 8]], best: [7, 8], desc: '堵住白棋的连五点', descEn: 'Block White five point', hint: '白棋只差一格', hintEn: 'One point away',
+      s: [[7, 4, 2], [7, 5, 2], [7, 6, 2], [7, 7, 2], [0, 9, 2], [7, 3, 1], [0, 0, 1], [0, 2, 1], [0, 4, 1], [2, 0, 1]] },
+    { id: 'p9', toMove: 2, sol: [[7, 7]], best: [7, 7], desc: '白棋的双三杀手', descEn: 'White double-three killer', hint: '横竖交叉点', hintEn: 'Where the lines cross',
+      s: [[7, 5, 2], [7, 6, 2], [5, 7, 2], [6, 7, 2], [0, 0, 1], [0, 2, 1], [2, 0, 1], [2, 2, 1], [0, 4, 1]] },
+    { id: 'p10', toMove: 2, sol: [[7, 3], [7, 7]], best: [7, 7], desc: '白棋做出活四', descEn: 'White open four', hint: '三连两端都可以', hintEn: 'Either end works',
+      s: [[7, 4, 2], [7, 5, 2], [7, 6, 2], [0, 0, 1], [0, 2, 1], [0, 4, 1], [2, 0, 1], [2, 2, 1], [0, 9, 2]] }
+];
+
+var PUZZLE = (function () {
+    'use strict';
+    const KEY = 'gomoku_puzzle_v1';
+    const SIZE_P = 15;
+    let puz = null, placed = null, solved = false, revealed = false, bad = null, badTimer = null, tries = 0;
+    function en() { try { return I18N.lang() === 'en'; } catch (e) { return false; } }
+    function L(zh, tx) { return en() ? tx : zh; }
+    function st() { try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { return {}; } }
+    function saveSt(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} }
+    function ds(d) { const p2 = function (x) { return String(x).padStart(2, '0'); }; return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); }
+    function today() { return ds(new Date()); }
+    function yest() { return ds(new Date(Date.now() - 86400000)); }
+    function dailyIndex() {
+        const base = Date.UTC(2026, 0, 1);
+        const day = Math.floor((Date.now() - base) / 86400000);
+        return Math.max(0, day) % PUZZLES.length;
+    }
+    function bar(t) { const el = document.getElementById('coachBar'); if (!el) return; el.classList.remove('off'); el.innerText = String(t || ''); }
+    function barHide() { const el = document.getElementById('coachBar'); if (el) { el.classList.add('off'); el.innerText = ''; } }
+    function refreshBadge() {
+        try {
+            const b = document.getElementById('pzBadge');
+            if (!b) return;
+            const s = st();
+            b.textContent = s.streak ? ('🔥 ' + s.streak + (en() ? 'd streak' : ' 连对')) : L('未挑战', 'Not started');
+        } catch (e) {}
+    }
+    function active() { return !!puz; }
+    function size() { return SIZE_P; }
+    function baseBoard() {
+        const b = Array(SIZE_P).fill().map(function () { return Array(SIZE_P).fill(0); });
+        for (const c of (puz.s || [])) b[c[0]][c[1]] = c[2];
+        return b;
+    }
+    function board() {
+        const b = baseBoard();
+        if (placed) b[placed.row][placed.col] = puz.toMove;
+        return b;
+    }
+    function marks() {
+        if (!puz) return [];
+        if (solved && placed) return [{ row: placed.row, col: placed.col, kind: 'ok' }];
+        if (revealed && puz.sol.length) return [{ row: puz.sol[0][0], col: puz.sol[0][1], kind: 'reveal' }];
+        if (bad) return [{ row: bad.row, col: bad.col, kind: 'bad' }];
+        return [];
+    }
+    function baseBar() {
+        if (!puz) return '';
+        const who = (puz.toMove === 1) ? L('黑先', 'Black to move') : L('白先', 'White to move');
+        return L('🧩 每日残局 · ' + who + ' · ' + puz.desc, '🧩 Daily puzzle · ' + who + ' · ' + puz.descEn);
+    }
+    function statusText() {
+        if (!puz) return '';
+        if (solved) return L('🧩 残局 · 已解开 🎉', '🧩 Puzzle · solved 🎉');
+        return L('🧩 每日残局挑战中', '🧩 Daily puzzle in progress');
+    }
+    function setMainVisible(v) {
+        const ids = ['undoBtn', 'resetBtn', 'coachBtn', 'reviewBtn'];
+        for (let i2 = 0; i2 < ids.length; i2++) {
+            const b = document.getElementById(ids[i2]);
+            if (b) b.style.display = v ? '' : 'none';
+        }
+        if (v) { try { COACH.sync(); } catch (e) {} }
+    }
+    function start() {
+        try {
+            if (window.REPLAY && REPLAY.active()) return;
+            if (typeof gameOver !== 'undefined' && !gameOver && typeof moveHistory !== 'undefined' && moveHistory.length) {
+                try { toast(L('对局进行中，结束后再挑战残局哦', 'Game in progress — try the puzzle after it ends')); } catch (e) {}
+                return;
+            }
+            if (typeof aiBusy !== 'undefined' && aiBusy) { try { toast(L('引擎思考中，稍后再试', 'Engine is thinking — try again shortly')); } catch (e) {} return; }
+            puz = PUZZLES[dailyIndex()];
+            placed = null; solved = false; revealed = false; bad = null; tries = 0;
+            if (badTimer) { clearTimeout(badTimer); badTimer = null; }
+            setMainVisible(false);
+            const ctl = document.getElementById('puzzleCtl');
+            if (ctl) ctl.style.display = '';
+            const info = document.getElementById('pzInfo');
+            if (info) info.textContent = '🧩 #' + (dailyIndex() + 1) + ' / ' + PUZZLES.length;
+            bar(baseBar());
+            try { updateStatus(); } catch (e) {}
+            drawBoard();
+        } catch (e) {}
+    }
+    function close() {
+        try {
+            puz = null; placed = null; solved = false; revealed = false; bad = null; tries = 0;
+            if (badTimer) { clearTimeout(badTimer); badTimer = null; }
+            const ctl = document.getElementById('puzzleCtl');
+            if (ctl) ctl.style.display = 'none';
+            setMainVisible(true);
+            barHide();
+            try { updateStatus(); } catch (e) {}
+            drawBoard();
+        } catch (e) {}
+    }
+    function click(ev, isTouch) {
+        try {
+            if (!puz || solved || revealed) return;
+            const e = isTouch ? (ev.touches && ev.touches[0]) : ev;
+            if (!e) return;
+            const rect = canvas.getBoundingClientRect();
+            const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+            const cell = (canvas.width - 2 * MARGIN) / (SIZE_P - 1);
+            const col = Math.round((mx - MARGIN) / cell);
+            const row = Math.round((my - MARGIN) / cell);
+            if (row < 0 || row >= SIZE_P || col < 0 || col >= SIZE_P) return;
+            const px = MARGIN + col * cell, py = MARGIN + row * cell;
+            if (Math.hypot(mx - px, my - py) > cell * 0.48) return;
+            const b = baseBoard();
+            if (b[row][col] !== 0) return;
+            const ok = puz.sol.some(function (c) { return c[0] === row && c[1] === col; });
+            if (ok) {
+                placed = { row: row, col: col };
+                solved = true; bad = null;
+                const s = st(); const t = today();
+                if (s.lastWin !== t) {
+                    s.streak = (s.lastWin === yest()) ? ((s.streak || 0) + 1) : 1;
+                    s.lastWin = t;
+                    s.best = Math.max(s.best || 0, s.streak);
+                    saveSt(s);
+                }
+                bar(L('🎉 答对了！', '🎉 Correct!') + (st().streak ? L(' 连对 ' + st().streak + ' 天', ' ' + st().streak + 'd streak') : '') + L('　（点 ✕ 退出）', '　(✕ to exit)'));
+                try { SOUND.win(); } catch (e2) {}
+                refreshBadge();
+                try { updateStatus(); } catch (e2) {}
+                drawBoard();
+            } else {
+                bad = { row: row, col: col };
+                tries++;
+                bar(L('❌ 再想想～（第 ' + tries + ' 次尝试）', '❌ Not quite — attempt ' + tries));
+                drawBoard();
+                if (badTimer) clearTimeout(badTimer);
+                badTimer = setTimeout(function () { bad = null; badTimer = null; drawBoard(); }, 700);
+            }
+        } catch (e) {}
+    }
+    function hint() {
+        try {
+            if (!puz || solved) return;
+            bar('💡 ' + (en() ? puz.hintEn : puz.hint));
+        } catch (e) {}
+    }
+    function answer() {
+        try {
+            if (!puz || solved) return;
+            revealed = true;
+            bar(L('🏳 答案已亮出（不计连对）', '🏳 Solution revealed (streak not counted)'));
+            drawBoard();
+        } catch (e) {}
+    }
+    function retry() {
+        try {
+            if (!puz) return;
+            placed = null; solved = false; revealed = false; bad = null; tries = 0;
+            if (badTimer) { clearTimeout(badTimer); badTimer = null; }
+            bar(baseBar());
+            drawBoard();
+        } catch (e) {}
+    }
+    try {
+        document.addEventListener('keydown', function (e) {
+            if (puz && e.key === 'Escape') close();
+        });
+    } catch (e) {}
+    return { start: start, close: close, click: click, hint: hint, answer: answer, retry: retry, active: active, size: size, board: board, marks: marks, statusText: statusText, refreshBadge: refreshBadge };
+})();
+
 /* ============================================================
  * 📜 v54 棋谱库：自动存档（localStorage）+ 列表面板 + 分享链接
  * ============================================================ */
@@ -7105,6 +7344,11 @@ document.getElementById('rpPrev').addEventListener('click', function () { try { 
 document.getElementById('rpNext').addEventListener('click', function () { try { REPLAY.step(1); } catch (e) {} });
 document.getElementById('rpLast').addEventListener('click', function () { try { REPLAY.jump(1); } catch (e) {} });
 document.getElementById('rpExit').addEventListener('click', function () { try { REPLAY.close(); } catch (e) {} });
+document.getElementById('pzStartBtn').addEventListener('click', function () { try { PUZZLE.start(); } catch (e) {} });
+document.getElementById('pzHint').addEventListener('click', function () { try { PUZZLE.hint(); } catch (e) {} });
+document.getElementById('pzRetry').addEventListener('click', function () { try { PUZZLE.retry(); } catch (e) {} });
+document.getElementById('pzAnswer').addEventListener('click', function () { try { PUZZLE.answer(); } catch (e) {} });
+document.getElementById('pzExit').addEventListener('click', function () { try { PUZZLE.close(); } catch (e) {} });
 document.querySelectorAll('.difficulty-btn[data-level]').forEach(btn => {
     btn.addEventListener('click', () => { if (window.NET && NET.online()) return; setDifficulty(parseInt(btn.dataset.level)); });
 });
@@ -7433,6 +7677,7 @@ if (RAPFI.available) {
 /* —— 加载引导收尾 —— */
 window.__bootDone = true;
 setTimeout(function () { try { RECORDS.applyHash(); } catch (e) {} }, 900);
+setTimeout(function () { try { PUZZLE.refreshBadge(); } catch (e) {} }, 1000);
 (function () {
     var ov = document.getElementById('bootOv');
     if (!ov) return;
