@@ -917,13 +917,13 @@ I18N.auto();
                 <span id="learnIndicator" class="learning-badge">📖 学习中...</span>
             </div>
             <div class="difficulty-row">
-                <button class="difficulty-btn" data-level="0">简单</button>
-                <button class="difficulty-btn active" data-level="1">中等</button>
+                <button class="difficulty-btn" data-level="0" title="入门：会成五、会堵五，其余凭感觉">简单</button>
+                <button class="difficulty-btn" data-level="4" title="秒级出手，强度略高于简单">快速开始</button>
+                <button class="difficulty-btn" data-level="6" title="冰痕引擎（仅 15×15）">冰痕</button>
+                <button class="difficulty-btn active" data-level="1" title="本机 AI：4 层搜索 + VCF 连杀识别">中等</button>
                 <button class="difficulty-btn" data-level="2" title="Rapfi 经典评估 · 多线程加速">困难</button>
+                <button class="difficulty-btn" data-level="5" title="XL Engine 攻击型（仅 15×15）">墨渊</button>
                 <button class="difficulty-btn" data-level="3" title="Rapfi NNUE 神经网络 · 本站最强">灵拙</button>
-                <button class="difficulty-btn" data-level="5" title="XL Engine 攻击型 · 强度接近困难档（仅 15×15）">墨渊</button>
-                <button class="difficulty-btn" data-level="6" title="快速计算型 · 强于中等档（仅 15×15）">冰痕</button>
-                <button class="difficulty-btn" data-level="4">快速开始</button>
             </div>
         </div>
         <div class="control-group" id="grpStrength">
@@ -1753,9 +1753,18 @@ function getAllImmediateWins(brd, color) {
 let SEARCH_NODES = 0;
 
 // ---------- V5 自适应时间管理 ----------
+/* 内部强度等级：0 简单 / 1 快速 / 2 中等 / 3 困难 / 4 灵拙（与按钮上的档位编号解耦） */
+function strengthLv(diff) {
+    if (diff === 0) return 0;
+    if (diff === 4) return 1;      /* 快速开始 */
+    if (diff === 1) return 2;      /* 中等 */
+    if (diff === 2) return 3;      /* 困难 */
+    return 4;                       /* 灵拙（走引擎，本机不用） */
+}
 function getTimeBudget(diff, stoneCnt) {
     if (SELFPLAY_ACTIVE) return SELF_MS_BUDGET;
-    const base = diff >= 3 ? 3200 : (diff >= 2 ? 450 : 130);
+    const lv = strengthLv(diff);
+    const base = lv >= 4 ? 3200 : (lv >= 3 ? 520 : (lv >= 2 ? 340 : 220));
     if (stoneCnt <= 7) return Math.min(460, Math.round(base * 0.5));    // 开局加速
     if (stoneCnt >= 28) return Math.min(4600, Math.round(base * 1.8));  // 终局/乱战加时
     return base;
@@ -2188,21 +2197,32 @@ function thinkMove(brd, aiColor, diff, humanColor) {
     const opp = otherColor(aiColor);
     const reason = [];
 
-    // 0) 简单难度：会堵一眼可见的成五，偶尔抓自己的成五，其余随机
+    // 0) 简单难度：成五 / 堵五 必做，其余凭一元评分挑点（看得懂四和三，但不算深）
     if (diff === 0) {
         const myW0 = getAllImmediateWins(brd, aiColor);
-        if (myW0.length > 0 && Math.random() < 0.6) {
+        if (myW0.length > 0) {
             return { row: myW0[0].r, col: myW0[0].c, depth: 1, reason: ['⚔ 简单模式也发现了五连'] };
         }
         const oppW0 = getAllImmediateWins(brd, opp);
-        if (oppW0.length > 0 && Math.random() < 0.75) {
+        if (oppW0.length > 0) {
             return { row: oppW0[0].r, col: oppW0[0].c, depth: 1, reason: ['🛡 堵住对方成五点'] };
         }
         const near0 = nearCells(brd);
         if (near0.length === 0) return { row: CENTER, col: CENTER, depth: 0, reason: ['开局天元'] };
-        const m0 = near0[Math.floor(Math.random() * near0.length)];
-        return { row: m0.r, col: m0.c, depth: 0, reason: ['🎲 随机走子'] };
+        /* v61：不再纯随机 —— 一元评分（成五/活四/冲四/活三/活二）挑点，
+           对手分量打 0.85 折（看得懂四，但不会算后续），再留 35% 随机让新手也赢得动 */
+        const scored0 = [];
+        for (const m0 of near0) {
+            const mineV = quickCell(brd, m0.r, m0.c, aiColor);
+            const theirV = quickCell(brd, m0.r, m0.c, opp);
+            scored0.push({ r: m0.r, c: m0.c, v: mineV + theirV * 0.85 });
+        }
+        scored0.sort(function (a, b) { return b.v - a.v; });
+        const top0 = scored0.slice(0, 4);
+        const pick0 = (Math.random() < 0.65) ? top0[0] : top0[Math.floor(Math.random() * top0.length)];
+        return { row: pick0.r, col: pick0.c, depth: 1, reason: ['🎲 简单模式：凭感觉走'] };
     }
+    const lvS = strengthLv(diff);
 
     // 空盘/开盘快速通道
     let stoneCnt = 0;
@@ -2237,7 +2257,7 @@ function thinkMove(brd, aiColor, diff, humanColor) {
             const obk = queryOpeningBook(brd, aiColor);
             if (obk) return { row: obk.row, col: obk.col, depth: 0, reason: ['📖 定式库：' + obk.name] };
         }
-        if (diff >= 3) {
+        if (lvS >= 4) {
             const sbk = querySelfBook(brd);
             if (sbk) return { row: sbk.row, col: sbk.col, depth: 0, reason: ['📖 自对弈棋谱开局'] };
         }
@@ -2268,20 +2288,20 @@ function thinkMove(brd, aiColor, diff, humanColor) {
     }
 
     // 3) 己方 VCF（连续冲四）必胜 → 直接执行（深度：灵拙 8 / 困难 3）
-    if (diff >= 2) {
+    if (lvS >= 2) {
         const tV = Date.now();
-        const vcfBudget = SELFPLAY_ACTIVE ? 60 : (diff >= 3 ? 600 : 160);
-        const vcf = vcfFirstMove(brd, aiColor, diff >= 3 ? 8 : 3, tV, vcfBudget);
+        const vcfBudget = SELFPLAY_ACTIVE ? 60 : (lvS >= 4 ? 600 : 170);
+        const vcf = vcfFirstMove(brd, aiColor, lvS >= 4 ? 8 : 4, tV, vcfBudget);
         if (vcf) return { row: vcf.r, col: vcf.c, depth: 1, reason: ['⚔ VCF 连续冲四：已成必胜杀'] };
     }
 
     // 4) 对手 VCF 威胁 → 识破并化解（堵点 / 反冲四 / 双威胁抢先手）；化解成功直接落下
     let vcfDefense = null;
-    if (diff >= 2 && !SELFPLAY_ACTIVE) {
+    if (lvS >= 2 && !SELFPLAY_ACTIVE) {
         const tVd = Date.now();
-        const oppVcf = vcfFirstMove(brd, opp, 6, tVd, 420);
+        const oppVcf = vcfFirstMove(brd, opp, 6, tVd, 320);
         if (oppVcf) {
-            vcfDefense = findVcfRefutation(brd, aiColor, oppVcf, tVd, 900);
+            vcfDefense = findVcfRefutation(brd, aiColor, oppVcf, tVd, 520);
             if (vcfDefense) {
                 reason.push('🛡 识破对手 VCF 杀 → 化解点 (' + vcfDefense.r + ',' + vcfDefense.c + ')');
                 return { row: vcfDefense.r, col: vcfDefense.c, depth: 1, reason };
@@ -2292,8 +2312,8 @@ function thinkMove(brd, aiColor, diff, humanColor) {
 
     // 5) 己方双威胁（双活三 / 四三 / 双四）→ 四三/双四直接成杀；双活三作为高优先候选交给搜索确认
     let vctCandidate = null;
-    if (diff >= 1 && !SELFPLAY_ACTIVE) {
-        vctCandidate = findDoubleThreat(brd, aiColor, Date.now(), diff >= 3 ? 220 : 130);
+    if (lvS >= 2 && !SELFPLAY_ACTIVE) {
+        vctCandidate = findDoubleThreat(brd, aiColor, Date.now(), lvS >= 4 ? 220 : 150);
         if (vctCandidate) {
             reason.push('⚔ 识别己方' + vctCandidate.kind + '杀点 (' + vctCandidate.r + ',' + vctCandidate.c + ')');
             if (vctCandidate.kind === '四三' || vctCandidate.kind === '双四') {
@@ -2304,8 +2324,8 @@ function thinkMove(brd, aiColor, diff, humanColor) {
     }
     // 6) 对手双威胁（双活三 / 四三 / 双四）→ 无己方双威胁时，抢占其关键点（攻击点即防守点）
     let vctDefense = null;
-    if (diff >= 1 && !SELFPLAY_ACTIVE && !vctCandidate) {
-        vctDefense = findDoubleThreat(brd, opp, Date.now(), diff >= 3 ? 260 : 150);
+    if (lvS >= 2 && !SELFPLAY_ACTIVE && !vctCandidate) {
+        vctDefense = findDoubleThreat(brd, opp, Date.now(), lvS >= 4 ? 260 : 160);
         if (vctDefense) {
             reason.push('🛡 识别对手' + vctDefense.kind + '杀点 (' + vctDefense.r + ',' + vctDefense.c + ') → 抢占封堵');
             return { row: vctDefense.r, col: vctDefense.c, depth: 1, reason };
@@ -2328,7 +2348,7 @@ function thinkMove(brd, aiColor, diff, humanColor) {
                 }
             }
         } catch (e) {}
-        if (profTag && diff >= 2) reason.push('🎯 对手画像：' + profTag + ' → 权重 x' + styleFactor.toFixed(2));
+        if (profTag && lvS >= 3) reason.push('🎯 对手画像：' + profTag + ' → 权重 x' + styleFactor.toFixed(2));
     }
 
     // 候选集
@@ -2357,7 +2377,7 @@ function thinkMove(brd, aiColor, diff, humanColor) {
     const hubMap = new Map();
     let hubTopScore = 0;
     let hubFactor = 0;
-    if (!SELFPLAY_ACTIVE && diff >= 2) {
+    if (!SELFPLAY_ACTIVE && lvS >= 3) {
         hubPoints = scanHubPoints(brd, opp);
         if (hubPoints.length) {
             hubTopScore = hubPoints[0].score;
@@ -2447,7 +2467,7 @@ function thinkMove(brd, aiColor, diff, humanColor) {
     // MCTS 直觉先导
     let mctsTop = null;
     let mctsKeySet = null;
-    const mctsMs = SELFPLAY_ACTIVE ? 0 : (diff >= 3 ? 110 : (diff >= 2 ? 60 : 0));
+    const mctsMs = SELFPLAY_ACTIVE ? 0 : (lvS >= 4 ? 110 : (lvS >= 3 ? 70 : (lvS >= 2 ? 45 : 0)));
     if (mctsMs > 0 && rootMoves.length > 3) {
         mctsTop = mctsHint(brd, aiColor, rootMoves.slice(0, 12), 6, 2, mctsMs);
         if (mctsTop && mctsTop.length) mctsKeySet = new Set(mctsTop.map(x => x.r + ',' + x.c));
@@ -2456,8 +2476,8 @@ function thinkMove(brd, aiColor, diff, humanColor) {
     // 迭代加深搜索（增量评估 + 威胁延伸）
     let bestMove = rootMoves[0];
     let bestVal = -Infinity;
-    const maxDepth = (diff >= 3) ? 12 : (diff >= 2 ? 4 : 2);
-    const rootCap = (diff >= 3) ? 20 : (diff >= 2 ? 16 : 12);
+    const maxDepth = (lvS >= 4) ? 12 : (lvS >= 3 ? 5 : (lvS >= 2 ? 4 : 2));
+    const rootCap = (lvS >= 4) ? 20 : (lvS >= 3 ? 18 : (lvS >= 2 ? 16 : 12));
     const budgetMs = getTimeBudget(diff, stoneCnt);
     const t0 = Date.now();
     resetSearchTables();
@@ -2499,12 +2519,12 @@ function thinkMove(brd, aiColor, diff, humanColor) {
     }
     reason.push('🔎 迭代加深深度 ' + (reached || 2) + '，评估 ' + (bestVal >= 1e8 ? '必胜' : bestVal.toFixed(0)));
 
-    if (varyReply && diff >= 2) reason.push('🧠 反制：对手重复上次胜局开局，AI 改换应手');
+    if (varyReply && lvS >= 3) reason.push('🧠 反制：对手重复上次胜局开局，AI 改换应手');
     if (seqHijack && bestMove.r === seqHijack.r && bestMove.c === seqHijack.c) reason.push('🧿 序列反制占位 (' + bestMove.r + ',' + bestMove.c + ')');
     if (vctCandidate && bestMove.r === vctCandidate.r && bestMove.c === vctCandidate.c) reason.push('⚔ VCT 双威胁：落子即双活三/四三，不可阻挡');
     if (vctDefense && bestMove.r === vctDefense.r && bestMove.c === vctDefense.c) reason.push('🛡 抢占对手双威胁关键点');
     if (vcfDefense && bestMove.r === vcfDefense.r && bestMove.c === vcfDefense.c) reason.push('🛡 化解对手 VCF 的关键应手');
-    if (mctsKeySet && mctsKeySet.has(bestMove.r + ',' + bestMove.c) && diff >= 2) reason.push('🎯 MCTS 直觉先导命中：模拟发现此处有棋');
+    if (mctsKeySet && mctsKeySet.has(bestMove.r + ',' + bestMove.c) && lvS >= 3) reason.push('🎯 MCTS 直觉先导命中：模拟发现此处有棋');
     const bkey = bestMove.r + ',' + bestMove.c;
     if (memBoost.has(bkey)) reason.push('🧠 败因记忆命中 (+' + (memBoost.get(bkey) * styleFactor).toFixed(0) + ')：此形曾导致 AI 落败');
     if (hubMap.has(bkey) && hubFactor > 0) {
