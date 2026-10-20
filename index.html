@@ -918,12 +918,17 @@ I18N.auto();
             </div>
             <div class="difficulty-row">
                 <button class="difficulty-btn" data-level="0" title="入门：会成五、会堵五，其余凭感觉">简单</button>
-                <button class="difficulty-btn" data-level="4" title="秒级出手，强度略高于简单">快速开始</button>
                 <button class="difficulty-btn" data-level="6" title="冰痕引擎（仅 15×15）">冰痕</button>
                 <button class="difficulty-btn active" data-level="1" title="本机 AI：4 层搜索 + VCF 连杀识别">中等</button>
                 <button class="difficulty-btn" data-level="2" title="Rapfi 经典评估 · 多线程加速">困难</button>
                 <button class="difficulty-btn" data-level="5" title="XL Engine 攻击型（仅 15×15）">墨渊</button>
                 <button class="difficulty-btn" data-level="3" title="Rapfi NNUE 神经网络 · 本站最强">灵拙</button>
+            </div>
+            <div style="margin-top:8px;padding-top:9px;border-top:1px dashed #cfe0f2;">
+                <button class="difficulty-btn" id="quickStartBtn" type="button" style="width:100%;font-weight:800;">⚡ 快速开始</button>
+                <div style="margin-top:6px;font-size:11.5px;font-weight:700;color:#6f93b4;line-height:1.5;">
+                    不用挑难度，点了直接开一局 · 比「简单」强一点，出手仍然很快
+                </div>
             </div>
         </div>
         <div class="control-group" id="grpStrength">
@@ -1764,7 +1769,7 @@ function strengthLv(diff) {
 function getTimeBudget(diff, stoneCnt) {
     if (SELFPLAY_ACTIVE) return SELF_MS_BUDGET;
     const lv = strengthLv(diff);
-    const base = lv >= 4 ? 3200 : (lv >= 3 ? 520 : (lv >= 2 ? 340 : 220));
+    const base = lv >= 4 ? 3200 : (lv >= 3 ? 520 : (lv >= 2 ? 340 : 260));
     if (stoneCnt <= 7) return Math.min(460, Math.round(base * 0.5));    // 开局加速
     if (stoneCnt >= 28) return Math.min(4600, Math.round(base * 1.8));  // 终局/乱战加时
     return base;
@@ -2476,7 +2481,7 @@ function thinkMove(brd, aiColor, diff, humanColor) {
     // 迭代加深搜索（增量评估 + 威胁延伸）
     let bestMove = rootMoves[0];
     let bestVal = -Infinity;
-    const maxDepth = (lvS >= 4) ? 12 : (lvS >= 3 ? 5 : (lvS >= 2 ? 4 : 2));
+    const maxDepth = (lvS >= 4) ? 12 : (lvS >= 3 ? 5 : (lvS >= 2 ? 4 : 3));
     const rootCap = (lvS >= 4) ? 20 : (lvS >= 3 ? 18 : (lvS >= 2 ? 16 : 12));
     const budgetMs = getTimeBudget(diff, stoneCnt);
     const t0 = Date.now();
@@ -5626,6 +5631,10 @@ function setDifficulty(level) {
     document.querySelectorAll('.difficulty-btn[data-level]').forEach(btn => {
         btn.classList.toggle('active', parseInt(btn.dataset.level) === level);
     });
+    try {
+        const _qb = document.getElementById('quickStartBtn');
+        if (_qb) _qb.classList.toggle('active', level === 4);
+    } catch (e) {}
     resetGame();
     LOG.add(`🔁 已切换难度：${DIFF_NAME[level]}`);
 }
@@ -8054,6 +8063,13 @@ document.getElementById('rpNext').addEventListener('click', function () { try { 
 document.getElementById('rpLast').addEventListener('click', function () { try { REPLAY.jump(1); } catch (e) {} });
 document.getElementById('rpExit').addEventListener('click', function () { try { REPLAY.close(); } catch (e) {} });
 document.getElementById('pzStartBtn').addEventListener('click', function () { try { PUZZLE.start('today'); } catch (e) {} });
+try {
+    document.getElementById('quickStartBtn').addEventListener('click', function () {
+        if (window.NET && NET.online()) { try { toast('联机对战中不能切换难度'); } catch (e) {} return; }
+        setDifficulty(4);                    /* 自带 resetGame()，点了就是"直接开局" */
+        try { toast('⚡ 快速开始 · 已开局'); } catch (e) {}
+    });
+} catch (e) {}
 try {
     document.getElementById('genToggle').addEventListener('click', function () { try { GEN.toggle(); } catch (e) {} });
     GEN.start();
