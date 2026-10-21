@@ -870,6 +870,169 @@ I18N.auto();
         .net-pref{flex:1;border:1px solid #cfe0f5;background:#fff;color:#2c5f92;border-radius:10px;padding:7px 4px;font-weight:700;cursor:pointer;font-family:inherit;font-size:12.5px}
         .net-pref.active{background:#6aabf2;color:#fff;border-color:#6aabf2}
     </style>
+<script>
+/* ============================================================
+ * 🖌 v63 开场动画：墨线画盘 → 五子落 → 笔势收尾（参考 clawd-mv 的手绘笔刷质感）
+ *    6 小时冷却 · 点一下立即跳过 · 分享链接/reduced-motion 不播
+ * ============================================================ */
+(function () {
+    'use strict';
+    var KEY = 'gomoku_intro_v1', COOL = 6 * 3600 * 1000;
+    try { if (location.hash && location.hash.indexOf('g=') >= 0) return; } catch (e) {}
+    try { if (Date.now() - (+(localStorage.getItem(KEY) || 0)) < COOL) return; } catch (e) {}
+    try { if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; } catch (e) {}
+
+    var DUR = 2000;
+    var ov = document.createElement('div');
+    ov.id = 'introOv';
+    ov.innerHTML = '<canvas></canvas><div class="intro-skip">点击跳过</div>';
+    (document.body || document.documentElement).appendChild(ov);
+    var cv = ov.querySelector('canvas');
+    var ctx = cv.getContext('2d');
+    var DPR = Math.min(2, window.devicePixelRatio || 1);
+    var W = 0, H = 0, cx = 0, cy = 0, cell = 24;
+    var done = false, T0 = performance.now(), lastEl = 0, boilT = 0, boilAt = 0;
+    var parts = [], splashed = {};
+
+    function layout() {
+        W = ov.clientWidth || window.innerWidth;
+        H = ov.clientHeight || window.innerHeight;
+        cv.width = Math.round(W * DPR);
+        cv.height = Math.round(H * DPR);
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        cx = W / 2; cy = H * 0.5;
+        cell = Math.max(17, Math.min(W * 0.052, H * 0.072));
+    }
+    layout();
+    window.addEventListener('resize', layout);
+
+    function clamp01(v) { return v < 0 ? 0 : (v > 1 ? 1 : v); }
+    function easeOut(v) { return 1 - Math.pow(1 - v, 3); }
+    function rnd(k) { var s = Math.sin(k * 12.9898 + boilT * 1.3) * 43758.5453; return s - Math.floor(s); }
+
+    /* 带抖动的手绘线（每 90ms 重算一次，形成"沸腾"的手绘帧感） */
+    function inkLine(x1, y1, x2, y2, seed, amp) {
+        var dx = x2 - x1, dy = y2 - y1;
+        var len = Math.hypot(dx, dy) || 1;
+        var nx = -dy / len, ny = dx / len;
+        var mx = (x1 + x2) / 2 + nx * (rnd(seed) - 0.5) * amp * 2;
+        var my = (y1 + y2) / 2 + ny * (rnd(seed) - 0.5) * amp * 2;
+        ctx.beginPath();
+        ctx.moveTo(x1 + (rnd(seed + 3.1) - 0.5) * amp, y1 + (rnd(seed + 5.7) - 0.5) * amp);
+        ctx.quadraticCurveTo(mx, my, x2 + (rnd(seed + 8.2) - 0.5) * amp, y2 + (rnd(seed + 9.9) - 0.5) * amp);
+        ctx.stroke();
+    }
+
+    function splash(x, y) {
+        for (var i = 0; i < 9; i++) {
+            var a = Math.random() * 6.2832, sp = (0.55 + Math.random()) * cell * 1.5;
+            parts.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - cell * 0.5, r: 0.9 + Math.random() * 1.7, life: 1 });
+        }
+    }
+
+    var DOTS = [[-2, -2], [-1, -1], [0, 0], [1, 1], [2, 2]];
+    var GRID = 14;
+
+    function draw(t, el) {
+        var dt = Math.min(0.05, (el - lastEl) / 1000);
+        lastEl = el;
+        if (el - boilAt > 90) { boilT += 0.85; boilAt = el; }
+        ctx.clearRect(0, 0, W, H);
+
+        /* —— ① 盘线：从中心十字向四周刷开 —— */
+        var half = GRID / 2;
+        ctx.lineCap = 'round';
+        for (var i = 0; i <= GRID; i++) {
+            var off = (i - half) * cell;
+            var g = clamp01((t - 0.03 - Math.abs(i - half) * 0.014) / 0.34);
+            if (g <= 0) continue;
+            var e = easeOut(g), len = half * cell * e;
+            ctx.strokeStyle = 'rgba(52,82,112,' + (0.14 + 0.32 * e) + ')';
+            ctx.lineWidth = 1.8 + 1.1 * (1 - e);
+            inkLine(cx - len, cy + off, cx + len, cy + off, i * 3.7 + 11, 1.8);
+            inkLine(cx + off, cy - len, cx + off, cy + len, i * 5.3 + 47, 1.8);
+        }
+
+        /* —— ② 五子依次落下 —— */
+        for (var d = 0; d < DOTS.length; d++) {
+            var t0 = 0.36 + d * 0.068;
+            var k = (t - t0) / 0.13;
+            if (k <= 0) continue;
+            var kk = clamp01(k), ee = easeOut(kk);
+            var px = cx + DOTS[d][1] * cell, py = cy + DOTS[d][0] * cell;
+            var drop = (1 - ee) * cell * 1.6;
+            var r = cell * 0.43 * (0.55 + 0.45 * ee);
+            var y = py - drop;
+            /* 落点暗影 */
+            if (ee > 0.72) {
+                ctx.beginPath();
+                ctx.ellipse(px, py + r * 0.85, r * 0.8, r * 0.26, 0, 0, 6.2832);
+                ctx.fillStyle = 'rgba(40,66,92,' + (0.10 * (ee - 0.72) / 0.28) + ')';
+                ctx.fill();
+            }
+            var gr = ctx.createRadialGradient(px - r * 0.38, y - r * 0.42, r * 0.12, px, y, r * 1.05);
+            gr.addColorStop(0, '#43596f');
+            gr.addColorStop(0.55, '#243447');
+            gr.addColorStop(1, '#141f2b');
+            ctx.beginPath(); ctx.arc(px, y, r, 0, 6.2832);
+            ctx.fillStyle = gr; ctx.fill();
+            ctx.lineWidth = 0.9; ctx.strokeStyle = 'rgba(16,26,38,.35)'; ctx.stroke();
+            if (kk >= 1 && !splashed[d]) { splashed[d] = 1; splash(px, py); }
+        }
+
+        /* —— 墨溅 —— */
+        for (var p = parts.length - 1; p >= 0; p--) {
+            var pt = parts[p];
+            pt.life -= dt * 2.1;
+            if (pt.life <= 0) { parts.splice(p, 1); continue; }
+            pt.x += pt.vx * dt; pt.y += pt.vy * dt;
+            pt.vy += cell * 5.5 * dt;
+            ctx.globalAlpha = Math.max(0, pt.life) * 0.72;
+            ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.r, 0, 6.2832);
+            ctx.fillStyle = '#1b2836'; ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        /* —— ③ 笔势高光：沿五连扫过 —— */
+        var hk = clamp01((t - 0.70) / 0.20);
+        if (hk > 0) {
+            var he = easeOut(hk);
+            var x1 = cx - 2.6 * cell, y1 = cy - 2.6 * cell;
+            var span = 5.2 * cell;
+            var grad = ctx.createLinearGradient(x1, y1, x1 + span, y1 + span);
+            grad.addColorStop(0, 'rgba(137,194,255,0)');
+            grad.addColorStop(0.42, 'rgba(255,246,220,.92)');
+            grad.addColorStop(1, 'rgba(137,194,255,0)');
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = cell * 0.46;
+            ctx.lineCap = 'round';
+            var ex = x1 + span * he, ey = y1 + span * he;
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(ex, ey); ctx.stroke();
+        }
+    }
+
+    function finish() {
+        if (done) return;
+        done = true;
+        try { localStorage.setItem(KEY, String(Date.now())); } catch (e) {}
+        ov.classList.add('out');
+        setTimeout(function () { try { ov.remove(); } catch (e) {} }, 460);
+    }
+    ov.addEventListener('pointerdown', function (ev) { try { ev.preventDefault(); } catch (e) {} finish(); });
+    window.addEventListener('keydown', finish, { once: true });
+    window.addEventListener('wheel', finish, { passive: true, once: true });
+
+    function frame(now) {
+        if (done) return;
+        var el = now - T0;
+        var t = clamp01(el / DUR);
+        draw(t, el);
+        if (t >= 1) { finish(); return; }
+        requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+})();
+</script>
 </head>
 <body>
 <div class="container">
@@ -1123,169 +1286,6 @@ I18N.auto();
     </div>
 </div>
 <script>
-/* ============================================================
- * 🖌 v63 开场动画：墨线画盘 → 五子落 → 笔势收尾（参考 clawd-mv 的手绘笔刷质感）
- *    6 小时冷却 · 点一下立即跳过 · 分享链接/reduced-motion 不播
- * ============================================================ */
-(function () {
-    'use strict';
-    var KEY = 'gomoku_intro_v1', COOL = 6 * 3600 * 1000;
-    try { if (location.hash && location.hash.indexOf('g=') >= 0) return; } catch (e) {}
-    try { if (Date.now() - (+(localStorage.getItem(KEY) || 0)) < COOL) return; } catch (e) {}
-    try { if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; } catch (e) {}
-    if (!document.body) return;
-
-    var DUR = 2000;
-    var ov = document.createElement('div');
-    ov.id = 'introOv';
-    ov.innerHTML = '<canvas></canvas><div class="intro-skip">点击跳过</div>';
-    document.body.appendChild(ov);
-    var cv = ov.querySelector('canvas');
-    var ctx = cv.getContext('2d');
-    var DPR = Math.min(2, window.devicePixelRatio || 1);
-    var W = 0, H = 0, cx = 0, cy = 0, cell = 24;
-    var done = false, T0 = performance.now(), lastEl = 0, boilT = 0, boilAt = 0;
-    var parts = [], splashed = {};
-
-    function layout() {
-        W = ov.clientWidth || window.innerWidth;
-        H = ov.clientHeight || window.innerHeight;
-        cv.width = Math.round(W * DPR);
-        cv.height = Math.round(H * DPR);
-        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-        cx = W / 2; cy = H * 0.5;
-        cell = Math.max(17, Math.min(W * 0.052, H * 0.072));
-    }
-    layout();
-    window.addEventListener('resize', layout);
-
-    function clamp01(v) { return v < 0 ? 0 : (v > 1 ? 1 : v); }
-    function easeOut(v) { return 1 - Math.pow(1 - v, 3); }
-    function rnd(k) { var s = Math.sin(k * 12.9898 + boilT * 1.3) * 43758.5453; return s - Math.floor(s); }
-
-    /* 带抖动的手绘线（每 90ms 重算一次，形成"沸腾"的手绘帧感） */
-    function inkLine(x1, y1, x2, y2, seed, amp) {
-        var dx = x2 - x1, dy = y2 - y1;
-        var len = Math.hypot(dx, dy) || 1;
-        var nx = -dy / len, ny = dx / len;
-        var mx = (x1 + x2) / 2 + nx * (rnd(seed) - 0.5) * amp * 2;
-        var my = (y1 + y2) / 2 + ny * (rnd(seed) - 0.5) * amp * 2;
-        ctx.beginPath();
-        ctx.moveTo(x1 + (rnd(seed + 3.1) - 0.5) * amp, y1 + (rnd(seed + 5.7) - 0.5) * amp);
-        ctx.quadraticCurveTo(mx, my, x2 + (rnd(seed + 8.2) - 0.5) * amp, y2 + (rnd(seed + 9.9) - 0.5) * amp);
-        ctx.stroke();
-    }
-
-    function splash(x, y) {
-        for (var i = 0; i < 9; i++) {
-            var a = Math.random() * 6.2832, sp = (0.55 + Math.random()) * cell * 1.5;
-            parts.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - cell * 0.5, r: 0.9 + Math.random() * 1.7, life: 1 });
-        }
-    }
-
-    var DOTS = [[-2, -2], [-1, -1], [0, 0], [1, 1], [2, 2]];
-    var GRID = 14;
-
-    function draw(t, el) {
-        var dt = Math.min(0.05, (el - lastEl) / 1000);
-        lastEl = el;
-        if (el - boilAt > 90) { boilT += 0.85; boilAt = el; }
-        ctx.clearRect(0, 0, W, H);
-
-        /* —— ① 盘线：从中心十字向四周刷开 —— */
-        var half = GRID / 2;
-        ctx.lineCap = 'round';
-        for (var i = 0; i <= GRID; i++) {
-            var off = (i - half) * cell;
-            var g = clamp01((t - 0.03 - Math.abs(i - half) * 0.014) / 0.34);
-            if (g <= 0) continue;
-            var e = easeOut(g), len = half * cell * e;
-            ctx.strokeStyle = 'rgba(52,82,112,' + (0.14 + 0.32 * e) + ')';
-            ctx.lineWidth = 1.8 + 1.1 * (1 - e);
-            inkLine(cx - len, cy + off, cx + len, cy + off, i * 3.7 + 11, 1.8);
-            inkLine(cx + off, cy - len, cx + off, cy + len, i * 5.3 + 47, 1.8);
-        }
-
-        /* —— ② 五子依次落下 —— */
-        for (var d = 0; d < DOTS.length; d++) {
-            var t0 = 0.36 + d * 0.068;
-            var k = (t - t0) / 0.13;
-            if (k <= 0) continue;
-            var kk = clamp01(k), ee = easeOut(kk);
-            var px = cx + DOTS[d][1] * cell, py = cy + DOTS[d][0] * cell;
-            var drop = (1 - ee) * cell * 1.6;
-            var r = cell * 0.43 * (0.55 + 0.45 * ee);
-            var y = py - drop;
-            /* 落点暗影 */
-            if (ee > 0.72) {
-                ctx.beginPath();
-                ctx.ellipse(px, py + r * 0.85, r * 0.8, r * 0.26, 0, 0, 6.2832);
-                ctx.fillStyle = 'rgba(40,66,92,' + (0.10 * (ee - 0.72) / 0.28) + ')';
-                ctx.fill();
-            }
-            var gr = ctx.createRadialGradient(px - r * 0.38, y - r * 0.42, r * 0.12, px, y, r * 1.05);
-            gr.addColorStop(0, '#43596f');
-            gr.addColorStop(0.55, '#243447');
-            gr.addColorStop(1, '#141f2b');
-            ctx.beginPath(); ctx.arc(px, y, r, 0, 6.2832);
-            ctx.fillStyle = gr; ctx.fill();
-            ctx.lineWidth = 0.9; ctx.strokeStyle = 'rgba(16,26,38,.35)'; ctx.stroke();
-            if (kk >= 1 && !splashed[d]) { splashed[d] = 1; splash(px, py); }
-        }
-
-        /* —— 墨溅 —— */
-        for (var p = parts.length - 1; p >= 0; p--) {
-            var pt = parts[p];
-            pt.life -= dt * 2.1;
-            if (pt.life <= 0) { parts.splice(p, 1); continue; }
-            pt.x += pt.vx * dt; pt.y += pt.vy * dt;
-            pt.vy += cell * 5.5 * dt;
-            ctx.globalAlpha = Math.max(0, pt.life) * 0.72;
-            ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.r, 0, 6.2832);
-            ctx.fillStyle = '#1b2836'; ctx.fill();
-        }
-        ctx.globalAlpha = 1;
-
-        /* —— ③ 笔势高光：沿五连扫过 —— */
-        var hk = clamp01((t - 0.70) / 0.20);
-        if (hk > 0) {
-            var he = easeOut(hk);
-            var x1 = cx - 2.6 * cell, y1 = cy - 2.6 * cell;
-            var span = 5.2 * cell;
-            var grad = ctx.createLinearGradient(x1, y1, x1 + span, y1 + span);
-            grad.addColorStop(0, 'rgba(137,194,255,0)');
-            grad.addColorStop(0.42, 'rgba(255,246,220,.92)');
-            grad.addColorStop(1, 'rgba(137,194,255,0)');
-            ctx.strokeStyle = grad;
-            ctx.lineWidth = cell * 0.46;
-            ctx.lineCap = 'round';
-            var ex = x1 + span * he, ey = y1 + span * he;
-            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(ex, ey); ctx.stroke();
-        }
-    }
-
-    function finish() {
-        if (done) return;
-        done = true;
-        try { localStorage.setItem(KEY, String(Date.now())); } catch (e) {}
-        ov.classList.add('out');
-        setTimeout(function () { try { ov.remove(); } catch (e) {} }, 460);
-    }
-    ov.addEventListener('pointerdown', function (ev) { try { ev.preventDefault(); } catch (e) {} finish(); });
-    window.addEventListener('keydown', finish, { once: true });
-    window.addEventListener('wheel', finish, { passive: true, once: true });
-
-    function frame(now) {
-        if (done) return;
-        var el = now - T0;
-        var t = clamp01(el / DUR);
-        draw(t, el);
-        if (t >= 1) { finish(); return; }
-        requestAnimationFrame(frame);
-    }
-    requestAnimationFrame(frame);
-})();
-
 /* —— 加载引导：第一屏即渲染（v27）—— */
 (function () {
     window.__bootDone = false;
